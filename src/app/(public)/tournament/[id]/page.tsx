@@ -380,7 +380,7 @@ function TeamsTab({ tournamentId }: { tournamentId: string }) {
 
 export default function TournamentPage() {
   const params = useParams();
-  const tournamentId = params.tournamentId as string;
+  const tournamentId = params.id as string;
 
   const {
     data: tournamentData,
