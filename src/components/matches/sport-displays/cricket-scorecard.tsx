@@ -35,14 +35,15 @@ function BallDisplay({ ball }: { ball: string }) {
 }
 
 export function CricketScorecard({ state, teamAName, teamBName, compact = false }: CricketScorecardProps) {
-  const currentInnings = state.innings[state.currentInnings];
-  const battingTeamName = state.battingTeam === state.innings[0]?.battingTeamId ? teamAName : teamBName;
+  const innings = state.innings ?? [];
+  const currentInnings = innings[state.currentInnings ?? 0];
+  const battingTeamName = state.battingTeam === innings[0]?.battingTeamId ? teamAName : teamBName;
 
   if (compact) {
     return (
       <div className="space-y-2">
-        {state.innings.map((inn, i) => {
-          const teamName = inn.battingTeamId === state.innings[0]?.battingTeamId ? teamAName : teamBName;
+        {innings.map((inn, i) => {
+          const teamName = inn.battingTeamId === innings[0]?.battingTeamId ? teamAName : teamBName;
           return (
             <div key={i} className="flex items-baseline justify-between">
               <span className={cn('text-sm', i === state.currentInnings ? 'font-semibold text-text-primary' : 'text-text-secondary')}>
@@ -70,8 +71,8 @@ export function CricketScorecard({ state, teamAName, teamBName, compact = false 
     <div className="space-y-4">
       {/* Innings scores */}
       <div className="space-y-3">
-        {state.innings.map((inn, i) => {
-          const teamName = inn.battingTeamId === state.innings[0]?.battingTeamId ? teamAName : teamBName;
+        {innings.map((inn, i) => {
+          const teamName = inn.battingTeamId === innings[0]?.battingTeamId ? teamAName : teamBName;
           const isCurrent = i === state.currentInnings && !state.isComplete;
           return (
             <div key={i} className={cn('p-3 rounded-lg', isCurrent ? 'bg-accent-light/50 border border-accent/20' : 'bg-surface')}>

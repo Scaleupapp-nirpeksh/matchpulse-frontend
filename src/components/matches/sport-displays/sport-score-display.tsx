@@ -15,7 +15,7 @@ interface SportScoreDisplayProps {
 }
 
 export function SportScoreDisplay({ sportType, state, teamAName, teamBName, compact = false }: SportScoreDisplayProps) {
-  if (!state) {
+  if (!state || typeof state !== 'object') {
     return (
       <div className="text-center py-4 text-sm text-text-tertiary">
         Match not started yet
@@ -37,16 +37,17 @@ export function SportScoreDisplay({ sportType, state, teamAName, teamBName, comp
       return <BasketballScore state={state as Basketball3x3State} teamAName={teamAName} teamBName={teamBName} is3x3 compact={compact} />;
 
     case 'volleyball': {
-      const vs = state as VolleyballState;
-      const currentSet = vs.sets[vs.currentSet - 1] || { scoreA: 0, scoreB: 0 };
+      const vs = state as Partial<VolleyballState>;
+      const sets = vs.sets ?? [];
+      const currentSet = sets[(vs.currentSet ?? 1) - 1] ?? { scoreA: 0, scoreB: 0 };
       return (
         <SetBasedScore
-          setsWonA={vs.setsWonA}
-          setsWonB={vs.setsWonB}
-          currentPointsA={currentSet.scoreA}
-          currentPointsB={currentSet.scoreB}
-          currentSetNumber={vs.setNumber}
-          sets={vs.sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
+          setsWonA={vs.setsWonA ?? 0}
+          setsWonB={vs.setsWonB ?? 0}
+          currentPointsA={currentSet.scoreA ?? 0}
+          currentPointsB={currentSet.scoreB ?? 0}
+          currentSetNumber={vs.setNumber ?? 1}
+          sets={sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
           serving={vs.serving}
           teamAName={teamAName}
           teamBName={teamBName}
@@ -57,15 +58,17 @@ export function SportScoreDisplay({ sportType, state, teamAName, teamBName, comp
     }
 
     case 'tennis': {
-      const ts = state as TennisState;
+      const ts = state as Partial<TennisState>;
+      const tsSets = ts.sets ?? [];
+      const currentGame = ts.currentGame ?? { pointsA: 0, pointsB: 0 };
       return (
         <SetBasedScore
-          setsWonA={ts.setsWonA}
-          setsWonB={ts.setsWonB}
-          currentPointsA={ts.currentGame.pointsA}
-          currentPointsB={ts.currentGame.pointsB}
-          currentSetNumber={ts.sets.length + 1}
-          sets={ts.sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.gamesA, scoreB: s.gamesB, isComplete: s.isComplete }))}
+          setsWonA={ts.setsWonA ?? 0}
+          setsWonB={ts.setsWonB ?? 0}
+          currentPointsA={currentGame.pointsA ?? 0}
+          currentPointsB={currentGame.pointsB ?? 0}
+          currentSetNumber={tsSets.length + 1}
+          sets={tsSets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.gamesA, scoreB: s.gamesB, isComplete: s.isComplete }))}
           serving={ts.serving}
           teamAName={teamAName}
           teamBName={teamBName}
@@ -73,23 +76,24 @@ export function SportScoreDisplay({ sportType, state, teamAName, teamBName, comp
           compact={compact}
           tiebreak={ts.tiebreak}
           tiebreakScore={ts.tiebreakScore}
-          gamesA={ts.gamesA}
-          gamesB={ts.gamesB}
+          gamesA={ts.gamesA ?? 0}
+          gamesB={ts.gamesB ?? 0}
         />
       );
     }
 
     case 'table_tennis': {
-      const tt = state as TableTennisState;
-      const currentSet = tt.sets[tt.currentSet - 1] || { scoreA: 0, scoreB: 0 };
+      const tt = state as Partial<TableTennisState>;
+      const ttSets = tt.sets ?? [];
+      const ttCurrentSet = ttSets[(tt.currentSet ?? 1) - 1] ?? { scoreA: 0, scoreB: 0 };
       return (
         <SetBasedScore
-          setsWonA={tt.setsWonA}
-          setsWonB={tt.setsWonB}
-          currentPointsA={currentSet.scoreA}
-          currentPointsB={currentSet.scoreB}
-          currentSetNumber={tt.setNumber}
-          sets={tt.sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
+          setsWonA={tt.setsWonA ?? 0}
+          setsWonB={tt.setsWonB ?? 0}
+          currentPointsA={ttCurrentSet.scoreA ?? 0}
+          currentPointsB={ttCurrentSet.scoreB ?? 0}
+          currentSetNumber={tt.setNumber ?? 1}
+          sets={ttSets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
           serving={tt.serving}
           teamAName={teamAName}
           teamBName={teamBName}
@@ -100,16 +104,17 @@ export function SportScoreDisplay({ sportType, state, teamAName, teamBName, comp
     }
 
     case 'badminton': {
-      const bd = state as BadmintonState;
-      const currentSet = bd.sets[bd.currentSet - 1] || { scoreA: 0, scoreB: 0 };
+      const bd = state as Partial<BadmintonState>;
+      const bdSets = bd.sets ?? [];
+      const bdCurrentSet = bdSets[(bd.currentSet ?? 1) - 1] ?? { scoreA: 0, scoreB: 0 };
       return (
         <SetBasedScore
-          setsWonA={bd.setsWonA}
-          setsWonB={bd.setsWonB}
-          currentPointsA={currentSet.scoreA}
-          currentPointsB={currentSet.scoreB}
-          currentSetNumber={bd.setNumber}
-          sets={bd.sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
+          setsWonA={bd.setsWonA ?? 0}
+          setsWonB={bd.setsWonB ?? 0}
+          currentPointsA={bdCurrentSet.scoreA ?? 0}
+          currentPointsB={bdCurrentSet.scoreB ?? 0}
+          currentSetNumber={bd.setNumber ?? 1}
+          sets={bdSets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
           serving={bd.serving}
           teamAName={teamAName}
           teamBName={teamBName}
@@ -120,16 +125,17 @@ export function SportScoreDisplay({ sportType, state, teamAName, teamBName, comp
     }
 
     case 'squash': {
-      const sq = state as SquashState;
-      const currentSet = sq.sets[sq.currentSet - 1] || { scoreA: 0, scoreB: 0 };
+      const sq = state as Partial<SquashState>;
+      const sqSets = sq.sets ?? [];
+      const sqCurrentSet = sqSets[(sq.currentSet ?? 1) - 1] ?? { scoreA: 0, scoreB: 0 };
       return (
         <SetBasedScore
-          setsWonA={sq.setsWonA}
-          setsWonB={sq.setsWonB}
-          currentPointsA={currentSet.scoreA}
-          currentPointsB={currentSet.scoreB}
-          currentSetNumber={sq.setNumber}
-          sets={sq.sets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
+          setsWonA={sq.setsWonA ?? 0}
+          setsWonB={sq.setsWonB ?? 0}
+          currentPointsA={sqCurrentSet.scoreA ?? 0}
+          currentPointsB={sqCurrentSet.scoreB ?? 0}
+          currentSetNumber={sq.setNumber ?? 1}
+          sets={sqSets.filter((s) => s.isComplete).map((s) => ({ scoreA: s.scoreA, scoreB: s.scoreB, isComplete: s.isComplete }))}
           serving={sq.serving}
           teamAName={teamAName}
           teamBName={teamBName}

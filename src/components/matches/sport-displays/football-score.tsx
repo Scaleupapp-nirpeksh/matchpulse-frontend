@@ -26,7 +26,7 @@ function formatClock(seconds: number): string {
 }
 
 export function FootballScore({ state, teamAName, teamBName, compact = false }: FootballScoreProps) {
-  const goals = (state.events || []).filter((e) => e.type === 'goal');
+  const goals = (state?.events || []).filter((e) => e.type === 'goal');
   const goalsA = goals.filter((g) => g.teamId === state.teamAId);
   const goalsB = goals.filter((g) => g.teamId === state.teamBId);
 
