@@ -8,6 +8,7 @@ export interface User {
   bio?: string;
   preferredSports?: string[];
   role: string;
+  organizationId?: string | { _id: string; name: string; slug: string; logoUrl?: string } | null;
   orgMemberships?: { orgId: string; role: string }[];
   privacySettings?: { showPhoto: boolean; showStats: boolean };
   createdAt: string;

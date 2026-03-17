@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { createOrganization, type CreateOrganizationData } from '@/lib/api/organizations';
 import { uploadLogo } from '@/lib/api/upload';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/use-auth';
 import { Building2, Upload, Image as ImageIcon } from 'lucide-react';
 
 const orgSchema = z.object({
@@ -30,6 +31,7 @@ type OrgFormValues = z.infer<typeof orgSchema>;
 
 export default function NewOrganizationPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -91,8 +93,10 @@ export default function NewOrganizationPage() {
         secondaryColor: data.secondaryColor,
       } as CreateOrganizationData) as unknown as { _id: string; id?: string };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       toast.success('Organization created successfully');
+      // Refresh user profile — backend auto-promotes to org_admin on org creation
+      await refreshUser();
       router.push(`/org/${result._id || result.id}/manage`);
     },
     onError: () => {
