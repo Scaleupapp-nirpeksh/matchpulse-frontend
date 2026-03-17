@@ -9,9 +9,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { RulesEditor } from '@/components/tournament/rules-editor'
+import { DEFAULT_RULES } from '@/lib/constants'
 import { getTournament, updateTournament, updateTournamentStatus } from '@/lib/api/tournaments'
 import { toast } from 'sonner'
-import { Save, AlertTriangle, XCircle } from 'lucide-react'
+import { Save, AlertTriangle, XCircle, RotateCcw, Sliders } from 'lucide-react'
 
 const settingsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -24,13 +26,15 @@ const settingsSchema = z.object({
 type SettingsForm = z.infer<typeof settingsSchema>
 
 interface Tournament {
-  id: string
+  _id: string
   name: string
   description?: string
+  sportType: string
+  format: string
   startDate?: string
   endDate?: string
   venues?: Array<string | { name: string; address?: string; _id?: string }>
-  rules?: Record<string, number>
+  rulesConfig?: Record<string, unknown>
   status: string
 }
 
@@ -40,6 +44,9 @@ export default function TournamentSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [rules, setRules] = useState<Record<string, unknown>>({})
+  const [rulesDirty, setRulesDirty] = useState(false)
+  const [savingRules, setSavingRules] = useState(false)
 
   const {
     register,
@@ -55,6 +62,7 @@ export default function TournamentSettingsPage() {
       try {
         const res = await getTournament(id) as unknown as Tournament
         setTournament(res)
+        setRules(res.rulesConfig || {})
         reset({
           name: res.name,
           description: res.description || '',
@@ -81,6 +89,31 @@ export default function TournamentSettingsPage() {
     } catch {
       toast.error('Failed to save settings')
     }
+  }
+
+  const handleRulesChange = (newRules: Record<string, unknown>) => {
+    setRules(newRules)
+    setRulesDirty(true)
+  }
+
+  const handleSaveRules = async () => {
+    setSavingRules(true)
+    try {
+      await updateTournament(id, { rulesConfig: rules })
+      setRulesDirty(false)
+      toast.success('Rules saved')
+    } catch {
+      toast.error('Failed to save rules')
+    } finally {
+      setSavingRules(false)
+    }
+  }
+
+  const handleResetRules = () => {
+    if (!tournament) return
+    const defaults = DEFAULT_RULES[tournament.sportType] || {}
+    setRules({ ...defaults })
+    setRulesDirty(true)
   }
 
   const handleCancel = async () => {
@@ -110,10 +143,13 @@ export default function TournamentSettingsPage() {
     return <p className="text-muted-foreground">Tournament not found.</p>
   }
 
+  const isActive = tournament.status === 'active'
+
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Tournament Settings</h1>
 
+      {/* General Settings */}
       <Card>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -156,21 +192,52 @@ export default function TournamentSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Rules (read-only) */}
-      {tournament.rules && Object.keys(tournament.rules).length > 0 && (
+      {/* Rules Editor */}
+      {tournament.sportType && Object.keys(rules).length > 0 && (
         <Card>
           <CardContent className="p-6">
-            <h3 className="mb-3 font-semibold">Rules</h3>
-            <div className="space-y-2">
-              {Object.entries(tournament.rules).map(([key, value]) => (
-                <div key={key} className="flex justify-between text-sm">
-                  <span className="capitalize text-muted-foreground">
-                    {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
-                  </span>
-                  <span className="font-mono font-medium">{value}</span>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-gray-500" />
+                <h3 className="font-semibold">Game Rules</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetRules}
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Reset All
+                </Button>
+              </div>
             </div>
+
+            {isActive && (
+              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                <p className="text-sm text-amber-700">
+                  <AlertTriangle className="inline mr-1.5 h-4 w-4" />
+                  This tournament is active. Rule changes will only affect future matches.
+                </p>
+              </div>
+            )}
+
+            <RulesEditor
+              sportType={tournament.sportType}
+              rules={rules}
+              onRulesChange={handleRulesChange}
+            />
+
+            <Button
+              type="button"
+              className="mt-5 w-full"
+              disabled={!rulesDirty || savingRules}
+              onClick={handleSaveRules}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {savingRules ? 'Saving Rules...' : 'Save Rules'}
+            </Button>
           </CardContent>
         </Card>
       )}

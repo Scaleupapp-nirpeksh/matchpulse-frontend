@@ -64,62 +64,123 @@ export const ROLE_HIERARCHY: Record<string, number> = {
 
 export const DEFAULT_RULES: Record<string, Record<string, unknown>> = {
   cricket: {
+    // Gameplay
     oversPerInnings: 15,
     powerplayOvers: 4,
     maxOversPerBowler: 3,
+    numberOfInnings: 2,
+    maxPlayersPerTeam: 11,
+    // Rules
     wideBallReBowl: true,
     freeHit: true,
     lbwEnabled: false,
-    numberOfInnings: 2,
+    superOverOnTie: true,
+    drsReviewsPerInnings: 0,
+    // Timeouts
+    timeoutsPerInnings: 1,
+    timeoutDuration: 2,
   },
   football: {
+    // Time
     halfLength: 30,
     extraTime: false,
     extraTimeLength: 10,
-    penaltyShootout: true,
+    injuryTime: true,
+    clockDirection: 'up',
+    // Substitutions
     maxSubstitutions: 3,
+    rollingSubstitutions: false,
+    // Timeouts
+    timeoutsPerHalf: 0,
+    timeoutDuration: 1,
+    // Discipline
+    yellowCardSuspension: 2,
+    // Tiebreaker
+    penaltyShootout: true,
   },
   basketball_5v5: {
+    // Time
     quarterLength: 10,
     overtimeLength: 5,
+    numberOfQuarters: 4,
+    clockDirection: 'down',
+    // Gameplay
     shotClock: 24,
     foulBonusThreshold: 5,
-    numberOfQuarters: 4,
+    // Substitutions
+    maxSubstitutions: 15,
+    // Timeouts
+    timeoutsPerHalf: 3,
+    timeoutDuration: 1,
+    // Discipline
+    maxPersonalFouls: 5,
+    technicalFoulLimit: 2,
   },
   basketball_3x3: {
+    // Gameplay
     targetScore: 21,
     gameTime: 10,
     shotClock: 12,
     foulBonus: 7,
+    maxPlayers: 4,
+    // Timeouts
+    timeoutsPerTeam: 1,
+    timeoutDuration: 0.5,
   },
   volleyball: {
+    // Gameplay
     setsToWin: 3,
     pointsPerSet: 25,
     decidingSetPoints: 15,
     minLeadToWin: 2,
+    maxPlayersOnCourt: 6,
+    // Substitutions
+    maxSubstitutionsPerSet: 6,
+    // Timeouts
+    timeoutsPerSet: 2,
+    timeoutDuration: 0.5,
   },
   tennis: {
+    // Gameplay
     bestOf: 3,
     tiebreakEnabled: true,
+    tiebreakPoints: 7,
     noAdScoring: false,
     finalSetTiebreak: true,
+    // Time
+    warmupTime: 5,
   },
   table_tennis: {
+    // Gameplay
     bestOf: 5,
     pointsPerSet: 11,
     minLeadToWin: 2,
+    serviceChangeEvery: 2,
+    // Timeouts
+    timeoutPerMatch: 1,
+    timeoutDuration: 1,
   },
   badminton: {
+    // Gameplay
     bestOf: 3,
     pointsPerGame: 21,
     capAt: 30,
     minLeadToWin: 2,
+    // Intervals
+    intervalPoints: 11,
+    intervalDuration: 1,
+    changeSidesOnDecider: true,
   },
   squash: {
+    // Gameplay
     bestOf: 5,
     pointsPerGame: 11,
     parScoring: true,
     minLeadToWin: 2,
+    letEnabled: true,
+    // Timeouts
+    timeoutPerGame: 1,
+    timeBetweenGames: 1.5,
   },
 };
 

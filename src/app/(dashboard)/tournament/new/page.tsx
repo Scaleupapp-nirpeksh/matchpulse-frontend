@@ -16,8 +16,10 @@ import { Separator } from '@/components/ui/separator';
 import { SportIcon } from '@/components/matches/sport-icon';
 import { createTournament, type CreateTournamentData } from '@/lib/api/tournaments';
 import { getOrganizations } from '@/lib/api/organizations';
-import { SPORT_LIST, DEFAULT_RULES, TOURNAMENT_FORMATS } from '@/lib/constants';
+import { SPORT_LIST, DEFAULT_RULES } from '@/lib/constants';
 import { getSportConfig, SPORT_CONFIGS } from '@/lib/sports-config';
+import { RulesEditor } from '@/components/tournament/rules-editor';
+import { getRuleMeta } from '@/lib/rules-metadata';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -128,10 +130,10 @@ function NewTournamentPage() {
     mutationFn: async () => {
       const details = getValues();
       const payload = {
-        organization: selectedOrg || urlOrgId,
+        organizationId: selectedOrg || urlOrgId,
         sportType: selectedSport,
         format: selectedFormat,
-        rules,
+        rulesConfig: rules,
         name: details.name,
         description: details.description,
         startDate: details.startDate,
@@ -189,12 +191,6 @@ function NewTournamentPage() {
 
   const sportConfig = selectedSport ? getSportConfig(selectedSport) : null;
   const details = getValues();
-
-  const formatRuleLabel = (key: string) =>
-    key
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/_/g, ' ')
-      .replace(/^\w/, (c) => c.toUpperCase());
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -348,54 +344,14 @@ function NewTournamentPage() {
                 Customize scoring rules for your tournament. Defaults are pre-filled.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(rules).map(([key, value]) => {
-                const isBool = typeof value === 'boolean';
-                return (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between gap-4"
-                  >
-                    <label className="text-sm font-medium text-text-primary">
-                      {formatRuleLabel(key)}
-                    </label>
-                    {isBool ? (
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={value as boolean}
-                        onClick={() =>
-                          setRules((prev) => ({ ...prev, [key]: !prev[key] }))
-                        }
-                        className={cn(
-                          'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-                          value ? 'bg-accent' : 'bg-surface border border-border'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm transition-transform',
-                            value ? 'translate-x-5' : 'translate-x-0'
-                          )}
-                        />
-                      </button>
-                    ) : (
-                      <Input
-                        type="number"
-                        value={String(value ?? '')}
-                        onChange={(e) =>
-                          setRules((prev) => ({
-                            ...prev,
-                            [key]: Number(e.target.value),
-                          }))
-                        }
-                        className="w-24"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              {Object.keys(rules).length === 0 && (
+            <CardContent>
+              {Object.keys(rules).length > 0 ? (
+                <RulesEditor
+                  sportType={selectedSport}
+                  rules={rules}
+                  onRulesChange={setRules}
+                />
+              ) : (
                 <p className="text-sm text-text-tertiary">
                   No configurable rules for this sport.
                 </p>
@@ -522,23 +478,26 @@ function NewTournamentPage() {
                     <div>
                       <span className="text-sm text-text-secondary">Rules</span>
                       <div className="mt-2 space-y-1.5 rounded-lg bg-surface p-3">
-                        {Object.entries(rules).map(([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between text-sm"
-                          >
-                            <span className="text-text-secondary">
-                              {formatRuleLabel(key)}
-                            </span>
-                            <span className="font-mono text-text-primary">
-                              {typeof value === 'boolean'
-                                ? value
-                                  ? 'Yes'
-                                  : 'No'
-                                : String(value)}
-                            </span>
-                          </div>
-                        ))}
+                        {Object.entries(rules).map(([key, value]) => {
+                          const meta = getRuleMeta(selectedSport, key);
+                          return (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="text-text-secondary">
+                                {meta.label}
+                              </span>
+                              <span className="font-mono text-text-primary">
+                                {typeof value === 'boolean'
+                                  ? value
+                                    ? 'Yes'
+                                    : 'No'
+                                  : `${String(value)}${meta.unit ? ` ${meta.unit}` : ''}`}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </>

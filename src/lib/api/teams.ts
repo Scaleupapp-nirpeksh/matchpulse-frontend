@@ -64,6 +64,18 @@ export async function addPlayer(teamId: string, data: AddPlayerData) {
   return apiClient.post(`/teams/${teamId}/players`, data);
 }
 
+export interface UpdatePlayerData {
+  jerseyNumber?: number;
+  position?: string;
+  role?: string;
+  isPlaying?: boolean;
+  [key: string]: unknown;
+}
+
+export async function updatePlayerInTeam(teamId: string, playerId: string, data: UpdatePlayerData) {
+  return apiClient.put(`/teams/${teamId}/players/${playerId}`, data);
+}
+
 export async function removePlayer(teamId: string, playerId: string) {
   return apiClient.delete(`/teams/${teamId}/players/${playerId}`);
 }

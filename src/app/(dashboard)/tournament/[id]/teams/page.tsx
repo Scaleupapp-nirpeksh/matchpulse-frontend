@@ -25,8 +25,10 @@ import {
 import {
   getTournamentTeams,
   createTeam,
+  updateTeam,
   deleteTeam,
   addPlayer,
+  updatePlayerInTeam,
   removePlayer,
   bulkImportTeams,
   type CreateTeamData,
@@ -42,6 +44,7 @@ import {
   Trash2,
   UserPlus,
   X,
+  Pencil,
 } from 'lucide-react';
 
 interface TeamData {
@@ -86,6 +89,11 @@ export default function TeamsPage() {
   const [addTeamOpen, setAddTeamOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [editTeamOpen, setEditTeamOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<TeamData | null>(null);
+  const [editTeamForm, setEditTeamForm] = useState({ name: '', shortName: '', color: '#10B981', seed: '' });
+  const [editingPlayer, setEditingPlayer] = useState<{ teamId: string; playerId: string } | null>(null);
+  const [editPlayerForm, setEditPlayerForm] = useState({ jerseyNumber: '', position: '' });
 
   // Fetch teams
   const { data: teams = [], isLoading } = useQuery({
@@ -136,6 +144,21 @@ export default function TeamsPage() {
     },
   });
 
+  // Update team mutation
+  const updateTeamMutation = useMutation({
+    mutationFn: ({ teamId, data }: { teamId: string; data: Record<string, unknown> }) =>
+      updateTeam(teamId, data),
+    onSuccess: () => {
+      toast.success('Team updated');
+      setEditTeamOpen(false);
+      setEditingTeam(null);
+      queryClient.invalidateQueries({ queryKey: ['tournament-teams', tournamentId] });
+    },
+    onError: () => {
+      toast.error('Failed to update team');
+    },
+  });
+
   // Delete team mutation
   const deleteTeamMutation = useMutation({
     mutationFn: (teamId: string) => deleteTeam(teamId),
@@ -164,6 +187,20 @@ export default function TeamsPage() {
     },
     onError: () => {
       toast.error('Failed to add player');
+    },
+  });
+
+  // Update player mutation
+  const updatePlayerMutation = useMutation({
+    mutationFn: ({ teamId, playerId, data }: { teamId: string; playerId: string; data: Record<string, unknown> }) =>
+      updatePlayerInTeam(teamId, playerId, data),
+    onSuccess: () => {
+      toast.success('Player updated');
+      setEditingPlayer(null);
+      queryClient.invalidateQueries({ queryKey: ['tournament-teams', tournamentId] });
+    },
+    onError: () => {
+      toast.error('Failed to update player');
     },
   });
 
@@ -199,6 +236,30 @@ export default function TeamsPage() {
       }
     };
     input.click();
+  };
+
+  const openEditTeam = (team: TeamData) => {
+    setEditingTeam(team);
+    setEditTeamForm({
+      name: team.name,
+      shortName: team.shortName || '',
+      color: team.color || '#10B981',
+      seed: team.seed ? String(team.seed) : '',
+    });
+    setEditTeamOpen(true);
+  };
+
+  const handleEditTeamSave = () => {
+    if (!editingTeam) return;
+    updateTeamMutation.mutate({
+      teamId: editingTeam._id,
+      data: {
+        name: editTeamForm.name,
+        shortName: editTeamForm.shortName || undefined,
+        color: editTeamForm.color,
+        seed: editTeamForm.seed ? Number(editTeamForm.seed) : undefined,
+      },
+    });
   };
 
   if (isLoading) {
@@ -323,16 +384,25 @@ export default function TeamsPage() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setExpandedTeam(isExpanded ? null : team._id)}
-                      className="rounded-lg p-1.5 text-text-tertiary hover:bg-surface hover:text-text-primary transition-colors"
-                    >
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditTeam(team)}
+                        className="rounded-lg p-1.5 text-text-tertiary hover:bg-surface hover:text-text-primary transition-colors"
+                        title="Edit team"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setExpandedTeam(isExpanded ? null : team._id)}
+                        className="rounded-lg p-1.5 text-text-tertiary hover:bg-surface hover:text-text-primary transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Expanded: Players + Add Player + Delete */}
@@ -347,38 +417,105 @@ export default function TeamsPage() {
                         </p>
                       ) : (
                         <div className="space-y-1.5">
-                          {players.map((player) => (
-                            <div
-                              key={player._id || player.playerId || player.name}
-                              className="flex items-center justify-between rounded-lg bg-surface px-3 py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                {player.jerseyNumber != null && (
-                                  <span className="text-xs font-mono font-bold text-text-secondary">
-                                    #{player.jerseyNumber}
-                                  </span>
-                                )}
-                                <span className="text-sm text-text-primary">{player.name}</span>
-                                {player.position && (
-                                  <Badge size="sm">{player.position}</Badge>
-                                )}
-                                {player.isCaptain && (
-                                  <Badge variant="accent" size="sm">C</Badge>
-                                )}
-                              </div>
-                              <button
-                                onClick={() =>
-                                  removePlayerMutation.mutate({
-                                    teamId: team._id,
-                                    playerId: player._id || player.playerId || '',
-                                  })
-                                }
-                                className="rounded p-1 text-text-tertiary hover:text-danger transition-colors"
+                          {players.map((player) => {
+                            const pid = player._id || player.playerId || '';
+                            const isEditing = editingPlayer?.teamId === team._id && editingPlayer?.playerId === pid;
+
+                            if (isEditing) {
+                              return (
+                                <div
+                                  key={pid || player.name}
+                                  className="flex items-center gap-2 rounded-lg bg-accent/5 border border-accent/20 px-3 py-2"
+                                >
+                                  <span className="text-sm text-text-primary shrink-0">{player.name}</span>
+                                  <Input
+                                    type="number"
+                                    value={editPlayerForm.jerseyNumber}
+                                    onChange={(e) => setEditPlayerForm({ ...editPlayerForm, jerseyNumber: e.target.value })}
+                                    placeholder="#"
+                                    className="h-7 w-14 text-xs"
+                                  />
+                                  <Input
+                                    value={editPlayerForm.position}
+                                    onChange={(e) => setEditPlayerForm({ ...editPlayerForm, position: e.target.value })}
+                                    placeholder="Position"
+                                    className="h-7 w-24 text-xs"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs px-2"
+                                    onClick={() =>
+                                      updatePlayerMutation.mutate({
+                                        teamId: team._id,
+                                        playerId: pid,
+                                        data: {
+                                          jerseyNumber: editPlayerForm.jerseyNumber ? Number(editPlayerForm.jerseyNumber) : undefined,
+                                          position: editPlayerForm.position || undefined,
+                                        },
+                                      })
+                                    }
+                                    loading={updatePlayerMutation.isPending}
+                                  >
+                                    Save
+                                  </Button>
+                                  <button
+                                    onClick={() => setEditingPlayer(null)}
+                                    className="rounded p-1 text-text-tertiary hover:text-text-primary"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                key={pid || player.name}
+                                className="flex items-center justify-between rounded-lg bg-surface px-3 py-2"
                               >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                                <div className="flex items-center gap-2">
+                                  {player.jerseyNumber != null && (
+                                    <span className="text-xs font-mono font-bold text-text-secondary">
+                                      #{player.jerseyNumber}
+                                    </span>
+                                  )}
+                                  <span className="text-sm text-text-primary">{player.name}</span>
+                                  {player.position && (
+                                    <Badge size="sm">{player.position}</Badge>
+                                  )}
+                                  {player.isCaptain && (
+                                    <Badge variant="accent" size="sm">C</Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      setEditingPlayer({ teamId: team._id, playerId: pid });
+                                      setEditPlayerForm({
+                                        jerseyNumber: player.jerseyNumber != null ? String(player.jerseyNumber) : '',
+                                        position: player.position || '',
+                                      });
+                                    }}
+                                    className="rounded p-1 text-text-tertiary hover:text-text-primary transition-colors"
+                                    title="Edit player"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      removePlayerMutation.mutate({
+                                        teamId: team._id,
+                                        playerId: pid,
+                                      })
+                                    }
+                                    className="rounded p-1 text-text-tertiary hover:text-danger transition-colors"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -454,6 +591,57 @@ export default function TeamsPage() {
           })}
         </div>
       )}
+
+      {/* Edit Team Dialog */}
+      <Dialog open={editTeamOpen} onOpenChange={setEditTeamOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Team</DialogTitle>
+            <DialogDescription>Update team details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="Team Name"
+              value={editTeamForm.name}
+              onChange={(e) => setEditTeamForm({ ...editTeamForm, name: e.target.value })}
+              placeholder="Team Name"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Short Name"
+                value={editTeamForm.shortName}
+                onChange={(e) => setEditTeamForm({ ...editTeamForm, shortName: e.target.value })}
+                placeholder="TN"
+                maxLength={5}
+              />
+              <Input
+                label="Seed"
+                type="number"
+                value={editTeamForm.seed}
+                onChange={(e) => setEditTeamForm({ ...editTeamForm, seed: e.target.value })}
+                placeholder="#"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-primary">Color</label>
+              <input
+                type="color"
+                value={editTeamForm.color}
+                onChange={(e) => setEditTeamForm({ ...editTeamForm, color: e.target.value })}
+                className="h-10 w-20 cursor-pointer rounded-lg border border-border"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTeamOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditTeamSave} loading={updateTeamMutation.isPending}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

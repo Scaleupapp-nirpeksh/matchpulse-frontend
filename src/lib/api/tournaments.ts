@@ -4,12 +4,17 @@ export interface CreateTournamentData {
   name: string;
   sportType: string;
   format: string;
-  organization: string;
+  organizationId: string;
   startDate: string;
   endDate?: string;
-  rules?: Record<string, unknown>;
+  rulesConfig?: Record<string, unknown>;
   maxTeams?: number;
   description?: string;
+  numGroups?: number;
+  teamsPerGroup?: number;
+  teamsAdvancing?: number;
+  seeding?: string;
+  thirdPlaceMatch?: boolean;
   [key: string]: unknown;
 }
 
@@ -18,13 +23,19 @@ export interface Tournament {
   name: string;
   sportType: string;
   format: string;
-  organization: string;
+  organizationId: string;
   status: string;
   startDate: string;
   endDate?: string;
-  rules: Record<string, unknown>;
+  rulesConfig: Record<string, unknown>;
+  numGroups?: number;
+  teamsPerGroup?: number;
+  teamsAdvancing?: number;
+  seeding?: string;
   maxTeams?: number;
   description?: string;
+  venues?: Array<{ name: string; address?: string; _id?: string }>;
+  thirdPlaceMatch?: boolean;
   teams: string[];
   matches: string[];
   createdAt: string;

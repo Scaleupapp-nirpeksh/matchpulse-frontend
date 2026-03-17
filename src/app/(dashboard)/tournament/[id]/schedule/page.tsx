@@ -10,11 +10,19 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LiveIndicator } from '@/components/matches/live-indicator'
-import { getTournamentMatches, createMatch } from '@/lib/api/matches'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { getTournamentMatches, createMatch, updateMatch, matchLifecycle } from '@/lib/api/matches'
 import { getTournamentTeams } from '@/lib/api/teams'
 import { formatDate, cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Plus, Calendar, X } from 'lucide-react'
+import { Plus, Calendar, X, Pencil, Ban, Clock, Play } from 'lucide-react'
 
 interface Team {
   _id: string
@@ -34,7 +42,7 @@ interface Match {
   matchNumber?: number
 }
 
-const STATUS_FILTERS = ['all', 'scheduled', 'live', 'completed'] as const
+const STATUS_FILTERS = ['all', 'scheduled', 'live', 'completed', 'postponed', 'cancelled'] as const
 
 export default function SchedulePage() {
   const { id: tournamentId } = useParams<{ id: string }>()
@@ -46,6 +54,15 @@ export default function SchedulePage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ homeTeamId: '', awayTeamId: '', scheduledAt: '', venue: '' })
+
+  // Edit dialog state
+  const [editMatch, setEditMatch] = useState<Match | null>(null)
+  const [editForm, setEditForm] = useState({ scheduledAt: '', venue: '', stage: '' })
+  const [saving, setSaving] = useState(false)
+
+  // Cancel/postpone confirmation
+  const [confirmAction, setConfirmAction] = useState<{ match: Match; action: 'cancel' | 'postpone' } | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -97,6 +114,69 @@ export default function SchedulePage() {
     }
   }
 
+  const openEditDialog = (match: Match, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setEditMatch(match)
+    setEditForm({
+      scheduledAt: match.scheduledAt ? match.scheduledAt.slice(0, 16) : '',
+      venue: match.venue || '',
+      stage: match.stage || '',
+    })
+  }
+
+  const handleEditSave = async () => {
+    if (!editMatch) return
+    setSaving(true)
+    try {
+      await updateMatch(editMatch._id, {
+        scheduledAt: editForm.scheduledAt || undefined,
+        venue: editForm.venue || undefined,
+        stage: editForm.stage || undefined,
+      } as Record<string, unknown>)
+      toast.success('Match updated')
+      setEditMatch(null)
+      fetchData()
+    } catch {
+      toast.error('Failed to update match')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openConfirmAction = (match: Match, action: 'cancel' | 'postpone', e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setConfirmAction({ match, action })
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    setActionLoading(true)
+    try {
+      await matchLifecycle(confirmAction.match._id, { action: confirmAction.action })
+      toast.success(`Match ${confirmAction.action === 'cancel' ? 'cancelled' : 'postponed'}`)
+      setConfirmAction(null)
+      fetchData()
+    } catch {
+      toast.error(`Failed to ${confirmAction.action} match`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleResume = async (match: Match, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await matchLifecycle(match._id, { action: 'start' })
+      toast.success('Match resumed')
+      fetchData()
+    } catch {
+      toast.error('Failed to resume match')
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -108,6 +188,16 @@ export default function SchedulePage() {
         </div>
       </div>
     )
+  }
+
+  const statusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'live': return 'live' as const
+      case 'completed': return 'default' as const
+      case 'cancelled': return 'danger' as const
+      case 'postponed': return 'warning' as const
+      default: return 'outline' as const
+    }
   }
 
   return (
@@ -255,9 +345,9 @@ export default function SchedulePage() {
                       <p className="font-medium">{match.teamB?.name ?? 'TBD'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {match.status === 'live' && <LiveIndicator />}
-                    <Badge variant={match.status === 'live' ? 'live' : match.status === 'completed' ? 'default' : 'outline'}>
+                    <Badge variant={statusBadgeVariant(match.status)}>
                       {match.status}
                     </Badge>
                     {match.scheduledAt && (
@@ -266,6 +356,49 @@ export default function SchedulePage() {
                     {match.venue && (
                       <span className="text-xs text-muted-foreground">{match.venue}</span>
                     )}
+
+                    {/* Action buttons */}
+                    {match.status === 'postponed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handleResume(match, e)}
+                        title="Resume match"
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {['scheduled', 'live', 'postponed'].includes(match.status) && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => openEditDialog(match, e)}
+                          title="Edit match"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {match.status !== 'postponed' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => openConfirmAction(match, 'postpone', e)}
+                            title="Postpone match"
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={(e) => openConfirmAction(match, 'cancel', e)}
+                          title="Cancel match"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -273,6 +406,87 @@ export default function SchedulePage() {
           ))}
         </div>
       )}
+
+      {/* Edit Match Dialog */}
+      <Dialog open={!!editMatch} onOpenChange={() => setEditMatch(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Match</DialogTitle>
+            <DialogDescription>
+              {editMatch?.teamA?.name ?? 'TBD'} vs {editMatch?.teamB?.name ?? 'TBD'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Date & Time</label>
+              <Input
+                type="datetime-local"
+                value={editForm.scheduledAt}
+                onChange={(e) => setEditForm({ ...editForm, scheduledAt: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Venue</label>
+              <Input
+                value={editForm.venue}
+                onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+                placeholder="Enter venue"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Stage</label>
+              <Input
+                value={editForm.stage}
+                onChange={(e) => setEditForm({ ...editForm, stage: e.target.value })}
+                placeholder="e.g. group_stage, semi_final"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMatch(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel/Postpone Confirmation Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction?.action === 'cancel' ? 'Cancel Match' : 'Postpone Match'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction?.action === 'cancel'
+                ? 'Are you sure you want to cancel this match? This action cannot be undone.'
+                : 'This match will be postponed and can be resumed later.'}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmAction?.match.teamA?.name ?? 'TBD'} vs {confirmAction?.match.teamB?.name ?? 'TBD'}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+              Go Back
+            </Button>
+            <Button
+              variant={confirmAction?.action === 'cancel' ? 'danger' : 'default'}
+              onClick={handleConfirmAction}
+              disabled={actionLoading}
+            >
+              {actionLoading
+                ? 'Processing...'
+                : confirmAction?.action === 'cancel'
+                  ? 'Cancel Match'
+                  : 'Postpone Match'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

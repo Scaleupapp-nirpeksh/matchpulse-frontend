@@ -34,7 +34,8 @@ export interface Match {
 }
 
 export interface MatchLifecycleData {
-  action: 'start' | 'pause' | 'resume' | 'end' | 'cancel';
+  action: 'start' | 'pause' | 'resume' | 'end' | 'cancel' | 'postpone';
+  reason?: string;
   [key: string]: unknown;
 }
 
