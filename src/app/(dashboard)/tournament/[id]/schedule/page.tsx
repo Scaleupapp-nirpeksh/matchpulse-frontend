@@ -17,20 +17,21 @@ import { toast } from 'sonner'
 import { Plus, Calendar, X } from 'lucide-react'
 
 interface Team {
-  id: string
+  _id: string
   name: string
 }
 
 interface Match {
-  id: string
-  homeTeam: { id: string; name: string }
-  awayTeam: { id: string; name: string }
+  _id: string
+  teamA?: { _id: string; name: string; shortName?: string }
+  teamB?: { _id: string; name: string; shortName?: string }
   status: string
-  score?: { home: number; away: number }
+  resultSummary?: { scoreA?: string; scoreB?: string }
   scheduledAt?: string
-  venue?: string
+  venue?: string | null
   stage?: string
-  group?: string
+  groupName?: string
+  matchNumber?: number
 }
 
 const STATUS_FILTERS = ['all', 'scheduled', 'live', 'completed'] as const
@@ -66,11 +67,11 @@ export default function SchedulePage() {
   }, [tournamentId])
 
   const stages = [...new Set(matches.map((m) => m.stage).filter(Boolean))]
-  const groups = [...new Set(matches.map((m) => m.group).filter(Boolean))]
+  const groups = [...new Set(matches.map((m) => m.groupName).filter(Boolean))]
 
   const filtered = matches.filter((m) => {
     if (statusFilter !== 'all' && m.status !== statusFilter) return false
-    if (stageFilter !== 'all' && m.stage !== stageFilter && m.group !== stageFilter) return false
+    if (stageFilter !== 'all' && m.stage !== stageFilter && m.groupName !== stageFilter) return false
     return true
   })
 
@@ -139,7 +140,7 @@ export default function SchedulePage() {
                 >
                   <option value="">Select team</option>
                   {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                    <option key={t._id} value={t._id}>{t.name}</option>
                   ))}
                 </select>
               </div>
@@ -151,8 +152,8 @@ export default function SchedulePage() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select team</option>
-                  {teams.filter((t) => t.id !== form.homeTeamId).map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                  {teams.filter((t) => t._id !== form.homeTeamId).map((t) => (
+                    <option key={t._id} value={t._id}>{t.name}</option>
                   ))}
                 </select>
               </div>
@@ -234,16 +235,16 @@ export default function SchedulePage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((match) => (
-            <Link key={match.id} href={`/match/${match.id}`}>
+            <Link key={match._id} href={`/match/${match._id}`}>
               <Card className="transition-colors hover:bg-muted/50">
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-medium">{match.homeTeam.name}</p>
+                      <p className="font-medium">{match.teamA?.name ?? 'TBD'}</p>
                     </div>
-                    {match.score ? (
-                      <div className="rounded bg-muted px-3 py-1 font-mono text-lg font-bold">
-                        {match.score.home} - {match.score.away}
+                    {match.resultSummary?.scoreA ? (
+                      <div className="rounded bg-muted px-3 py-1 font-mono text-sm font-bold">
+                        {match.resultSummary.scoreA} - {match.resultSummary.scoreB}
                       </div>
                     ) : (
                       <div className="rounded bg-muted px-3 py-1 text-sm text-muted-foreground">
@@ -251,7 +252,7 @@ export default function SchedulePage() {
                       </div>
                     )}
                     <div>
-                      <p className="font-medium">{match.awayTeam.name}</p>
+                      <p className="font-medium">{match.teamB?.name ?? 'TBD'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

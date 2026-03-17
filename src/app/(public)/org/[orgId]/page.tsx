@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SportIcon } from '@/components/matches/sport-icon';
-import { getOrganizationBySlug } from '@/lib/api/organizations';
+import { getOrganization, getOrganizationBySlug } from '@/lib/api/organizations';
 import { getTournaments } from '@/lib/api/tournaments';
 import { getSportConfig } from '@/lib/sports-config';
 import { formatDate } from '@/lib/utils';
@@ -63,6 +63,9 @@ export default function OrganizationPage() {
   const params = useParams();
   const slug = params.orgId as string;
 
+  // Support both slug and ObjectId lookups
+  const isObjectId = /^[a-f0-9]{24}$/i.test(slug);
+
   const {
     data: orgData,
     isLoading: orgLoading,
@@ -70,7 +73,9 @@ export default function OrganizationPage() {
   } = useQuery({
     queryKey: ['org', slug],
     queryFn: async () => {
-      const res = await getOrganizationBySlug(slug);
+      const res = isObjectId
+        ? await getOrganization(slug)
+        : await getOrganizationBySlug(slug);
       return ((res as unknown as { data: OrgData }).data ?? (res as unknown as OrgData)) as OrgData;
     },
     enabled: !!slug,

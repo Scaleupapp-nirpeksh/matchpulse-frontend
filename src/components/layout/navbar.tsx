@@ -132,7 +132,7 @@ export function Navbar() {
                     Scorer
                   </Link>
                   <Link
-                    href="/dashboard/profile"
+                    href="/profile"
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface transition-colors"
                   >
@@ -216,7 +216,7 @@ export function Navbar() {
                   Scorer
                 </Link>
                 <Link
-                  href="/dashboard/profile"
+                  href="/profile"
                   className="flex items-center gap-3 text-sm font-medium text-text-secondary hover:text-text-primary py-3 px-4 rounded-lg hover:bg-surface transition-colors"
                   onClick={() => setMobileOpen(false)}
                 >

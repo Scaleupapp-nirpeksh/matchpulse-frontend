@@ -145,7 +145,10 @@ function StatsSection({ playerId }: { playerId: string }) {
       k !== 'sport' &&
       k !== 'sportType' &&
       !k.startsWith('_') &&
-      k !== 'playerId'
+      k !== 'playerId' &&
+      k !== 'player' &&
+      k !== 'id' &&
+      k !== '__v'
   );
 
   return <StatEntries entries={entries} />;

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Trophy,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/use-permissions';
+import { getOrganizations } from '@/lib/api/organizations';
 
 interface NavItem {
   label: string;
@@ -32,37 +34,51 @@ interface NavSection {
   minRole?: string;
 }
 
-const navSections: NavSection[] = [
-  {
-    title: 'Overview',
-    items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: 'Organization',
-    minRole: 'org_admin',
-    items: [
-      { label: 'Settings', href: '/dashboard/org/settings', icon: Settings, minRole: 'org_admin' },
-      { label: 'Members', href: '/dashboard/org/members', icon: Users, minRole: 'org_admin' },
-      { label: 'Audit Log', href: '/dashboard/org/audit', icon: Shield, minRole: 'org_admin' },
-    ],
-  },
-  {
-    title: 'Tournaments',
-    items: [
-      { label: 'All Tournaments', href: '/dashboard/tournaments', icon: Trophy },
-      { label: 'Create New', href: '/tournament/new', icon: PlusCircle, minRole: 'tournament_admin' },
-    ],
-  },
-  {
-    title: 'Matches',
-    items: [
-      { label: 'Matches', href: '/dashboard/matches', icon: ClipboardList },
-      { label: 'Score', href: '/scorer', icon: PenLine, minRole: 'scorer' },
-    ],
-  },
-];
+function buildNavSections(orgId?: string): NavSection[] {
+  const orgBase = orgId ? `/org/${orgId}` : null;
+
+  return [
+    {
+      title: 'Overview',
+      items: [
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    ...(orgBase
+      ? [
+          {
+            title: 'Organization',
+            minRole: 'org_admin',
+            items: [
+              { label: 'Settings', href: `${orgBase}/settings`, icon: Settings, minRole: 'org_admin' },
+              { label: 'Members', href: `${orgBase}/members`, icon: Users, minRole: 'org_admin' },
+              { label: 'Tournaments', href: `${orgBase}/tournaments`, icon: Trophy, minRole: 'org_admin' },
+            ],
+          } as NavSection,
+        ]
+      : [
+          {
+            title: 'Organization',
+            items: [
+              { label: 'Create Org', href: '/org/new', icon: Building2 },
+            ],
+          } as NavSection,
+        ]),
+    {
+      title: 'Tournaments',
+      items: [
+        { label: 'Create New', href: '/tournament/new', icon: PlusCircle, minRole: 'tournament_admin' },
+      ],
+    },
+    {
+      title: 'Matches',
+      items: [
+        { label: 'Matches', href: '/matches', icon: ClipboardList },
+        { label: 'Score', href: '/scorer', icon: PenLine, minRole: 'scorer' },
+      ],
+    },
+  ];
+}
 
 export interface SidebarProps {
   collapsed?: boolean;
@@ -72,6 +88,15 @@ export interface SidebarProps {
 export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { hasMinRole } = usePermissions();
+
+  const { data: organizations } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => getOrganizations() as unknown as Promise<{ _id: string; name: string }[]>,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeOrgId = organizations?.[0]?._id;
+  const navSections = React.useMemo(() => buildNavSections(activeOrgId), [activeOrgId]);
 
   return (
     <aside

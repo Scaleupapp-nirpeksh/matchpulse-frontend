@@ -29,7 +29,7 @@ interface Tournament {
   description?: string
   startDate?: string
   endDate?: string
-  venues?: string[]
+  venues?: Array<string | { name: string; address?: string; _id?: string }>
   rules?: Record<string, number>
   status: string
 }
@@ -60,7 +60,7 @@ export default function TournamentSettingsPage() {
           description: res.description || '',
           startDate: res.startDate ? res.startDate.split('T')[0] : '',
           endDate: res.endDate ? res.endDate.split('T')[0] : '',
-          venues: res.venues?.join(', ') || '',
+          venues: res.venues?.map((v) => typeof v === 'string' ? v : v.name).join(', ') || '',
         })
       } catch (err) {
         console.error('Failed to fetch tournament', err)

@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Home', href: '/dashboard', icon: Home },
-  { label: 'Matches', href: '/dashboard/matches', icon: Trophy },
+  { label: 'Matches', href: '/matches', icon: Trophy },
   { label: 'Score', href: '/scorer', icon: PenLine },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
+  { label: 'Profile', href: '/profile', icon: User },
 ];
 
 export function MobileNav() {

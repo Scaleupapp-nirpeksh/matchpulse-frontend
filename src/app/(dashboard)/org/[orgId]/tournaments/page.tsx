@@ -14,9 +14,10 @@ import { formatDate, cn } from '@/lib/utils'
 import { Plus, Trophy } from 'lucide-react'
 
 interface Tournament {
-  id: string
+  _id: string
   name: string
-  sport: string
+  sportType?: string
+  sport?: string
   format: string
   status: string
   startDate?: string
@@ -102,11 +103,11 @@ export default function OrgTournamentsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((t) => (
-            <Link key={t.id} href={`/tournament/${t.id}/manage`}>
+            <Link key={t._id} href={`/tournament/${t._id}/manage`}>
               <Card className="h-full transition-colors hover:bg-muted/50">
                 <CardContent className="p-5">
                   <div className="mb-3 flex items-center justify-between">
-                    <SportIcon sport={t.sport} className="h-6 w-6" />
+                    <SportIcon sport={t.sportType || t.sport || ''} className="h-6 w-6" />
                     <Badge variant={t.status === 'active' ? 'accent' : t.status === 'completed' ? 'default' : 'outline'}>
                       {t.status}
                     </Badge>

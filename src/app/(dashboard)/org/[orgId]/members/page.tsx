@@ -13,11 +13,11 @@ import { toast } from 'sonner'
 import { UserPlus, Copy, X } from 'lucide-react'
 
 interface Member {
-  id: string
+  _id: string
   fullName: string
   email?: string
   role: string
-  joinedAt: string
+  joinedAt?: string
 }
 
 const ROLES = [
@@ -171,13 +171,13 @@ export default function MembersPage() {
                   </tr>
                 ) : (
                   members.map((m) => (
-                    <tr key={m.id} className="border-b last:border-0">
+                    <tr key={m._id} className="border-b last:border-0">
                       <td className="px-6 py-4 font-medium">{m.fullName}</td>
                       <td className="px-6 py-4 text-muted-foreground">{m.email || '-'}</td>
                       <td className="px-6 py-4">
                         <Badge variant="outline">{m.role.replace('_', ' ')}</Badge>
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">{formatDate(m.joinedAt)}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{m.joinedAt ? formatDate(m.joinedAt) : '-'}</td>
                     </tr>
                   ))
                 )}
