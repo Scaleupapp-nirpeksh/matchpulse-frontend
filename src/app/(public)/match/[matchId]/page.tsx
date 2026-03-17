@@ -37,6 +37,10 @@ import type { SportState } from '@/types/sport-states';
 import type { ScoringEvent } from '@/types/scoring';
 
 function getTeamName(team: Match['teamA'], short = false): string {
+  // Format 1: flat populated (team data at top level)
+  if (short && team.shortName) return team.shortName;
+  if (!short && team.name) return team.name;
+  // Format 2: nested teamId object
   if (typeof team.teamId === 'object' && team.teamId !== null) {
     return short ? (team.teamId.shortName || team.teamId.name) : team.teamId.name;
   }
@@ -44,6 +48,9 @@ function getTeamName(team: Match['teamA'], short = false): string {
 }
 
 function getTeamColor(team: Match['teamA']): string {
+  // Format 1: flat populated
+  if (team.color) return team.color;
+  // Format 2: nested teamId object
   if (typeof team.teamId === 'object' && team.teamId !== null) {
     return team.teamId.color || '#6B7280';
   }
@@ -326,6 +333,17 @@ export default function MatchDetailPage() {
     ),
   ];
 
+  // Build commentary from event AI commentary + live socket commentary
+  const eventCommentary = allEvents
+    .filter((e) => e.aiCommentary && !e.isUndone)
+    .map((e) => ({ eventId: e._id || e.id || String(e.sequenceNumber), text: e.aiCommentary as string }));
+  const allCommentary = [
+    ...eventCommentary,
+    ...liveState.commentary.filter(
+      (lc) => !eventCommentary.some((ec) => ec.eventId === lc.eventId)
+    ),
+  ];
+
   const winProbability =
     liveState.winProbability || match.winProbability || null;
 
@@ -551,7 +569,7 @@ export default function MatchDetailPage() {
 
             <TabsContent value="commentary">
               <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <CommentaryFeed items={liveState.commentary} />
+                <CommentaryFeed items={allCommentary} />
               </div>
             </TabsContent>
 

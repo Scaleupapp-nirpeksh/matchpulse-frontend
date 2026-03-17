@@ -145,8 +145,8 @@ export const EVENT_TYPES = {
   MATCH_PAUSE: 'match_pause',
   MATCH_RESUME: 'match_resume',
   MATCH_END: 'match_end',
-  PERIOD_START: 'period_start',
-  PERIOD_END: 'period_end',
+  PERIOD_START: 'half_start',
+  PERIOD_END: 'half_end',
   UNDO: 'undo',
 } as const;
 

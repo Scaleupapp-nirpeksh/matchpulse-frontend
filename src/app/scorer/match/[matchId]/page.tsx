@@ -49,7 +49,11 @@ import {
 } from 'lucide-react';
 
 // ------ Helper to get team name ------
+// The API returns teamA/teamB in two formats:
+// 1. Populated flat: { _id, name, shortName, color, players } (team data at top level)
+// 2. Nested: { teamId: { _id, name, shortName, ... }, name }
 function getTeamName(team: Match['teamA']): string {
+  if (team.shortName) return team.shortName;
   if (typeof team.teamId === 'object' && team.teamId !== null) {
     return team.teamId.shortName || team.teamId.name;
   }
@@ -64,13 +68,27 @@ function getTeamFullName(team: Match['teamA']): string {
 }
 
 function getTeamId(team: Match['teamA']): string {
+  // Format 1: populated flat structure — _id is the team ID
+  if (team._id) return team._id;
+  // Format 2: nested teamId object
   if (typeof team.teamId === 'object' && team.teamId !== null) {
     return team.teamId._id;
   }
-  return String(team.teamId);
+  // Format 3: teamId is a string
+  if (team.teamId) return String(team.teamId);
+  return '';
 }
 
-function getTeamPlayers(team: Match['teamA']): { _id: string; name: string }[] {
+function getTeamPlayers(team: Match['teamA']): { _id: string; name: string; playerId?: string }[] {
+  // Format 1: players at top level (populated flat)
+  if (team.players && team.players.length > 0) {
+    return team.players.map(p => ({
+      _id: p.playerId || p._id || '',
+      name: `#${p.jerseyNumber || '?'}`,
+      playerId: p.playerId,
+    }));
+  }
+  // Format 2: nested in teamId
   if (typeof team.teamId === 'object' && team.teamId !== null && team.teamId.players) {
     return team.teamId.players;
   }
@@ -175,10 +193,33 @@ export default function LiveScoringPage() {
   };
 
   const handleSubmitEvent = useCallback(
-    (eventData: Record<string, unknown>) => {
-      submitMutation.mutate(eventData);
+    (data: Record<string, unknown>) => {
+      if (!matchData) return;
+      const m = matchData as Match;
+      const aId = getTeamId(m.teamA);
+      // The backend normalizes: { eventType, eventData, ...(eventData || {}) }
+      // For non-cricket sports, the engine expects 'team' ('a'/'b') inside eventData
+      // (which gets spread to the top-level event object).
+      // Cricket uses 'teamId' as a separate field.
+      const transformed = { ...data };
+      if (m.sportType !== 'cricket' && transformed.teamId) {
+        const teamSide = transformed.teamId === aId ? 'a' : 'b';
+        const existingEventData = (transformed.eventData as Record<string, unknown>) || {};
+        transformed.eventData = { ...existingEventData, team: teamSide };
+        delete transformed.teamId;
+      }
+      // For rally sports, also add 'scoringTeam' for volleyball engine compatibility
+      if (
+        ['volleyball', 'badminton', 'squash'].includes(m.sportType) &&
+        transformed.eventData &&
+        (transformed.eventData as Record<string, unknown>).team
+      ) {
+        (transformed.eventData as Record<string, unknown>).scoringTeam =
+          (transformed.eventData as Record<string, unknown>).team;
+      }
+      submitMutation.mutate(transformed);
     },
-    [submitMutation]
+    [submitMutation, matchData]
   );
 
   if (isLoading || !matchData) {
@@ -768,11 +809,11 @@ function FootballScoringPad({
     onSubmit({
       eventType: EVENT_TYPES.GOAL,
       eventData: {
-        minute: minute ? Number(minute) : undefined,
-        assisterId: selectedAssister || undefined,
+        scorer: selectedPlayer || undefined,
+        assister: selectedAssister || undefined,
+        minute: minute ? Number(minute) : 0,
       },
       teamId: selectedTeam,
-      playerId: selectedPlayer || undefined,
     });
     setGoalOpen(false);
     resetForm();
@@ -783,10 +824,10 @@ function FootballScoringPad({
       eventType: EVENT_TYPES.CARD,
       eventData: {
         cardType,
-        minute: minute ? Number(minute) : undefined,
+        player: selectedPlayer || undefined,
+        minute: minute ? Number(minute) : 0,
       },
       teamId: selectedTeam,
-      playerId: selectedPlayer || undefined,
     });
     setCardOpen(false);
     resetForm();
@@ -796,8 +837,8 @@ function FootballScoringPad({
     onSubmit({
       eventType: EVENT_TYPES.SUBSTITUTION,
       eventData: {
-        playerOutId: playerOut,
-        playerInId: playerIn,
+        playerOut,
+        playerIn,
         minute: minute ? Number(minute) : undefined,
       },
       teamId: selectedTeam,
@@ -1381,7 +1422,7 @@ function RallyScoringPad({
     const eventType = sportType === 'tennis' ? EVENT_TYPES.POINT : EVENT_TYPES.RALLY_POINT;
     onSubmit({
       eventType,
-      eventData: { side: teamId === teamAId ? 'A' : 'B' },
+      eventData: {},
       teamId,
     });
   };
@@ -1390,7 +1431,7 @@ function RallyScoringPad({
   const handleTennisExtra = (type: string, teamId: string) => {
     onSubmit({
       eventType: EVENT_TYPES.POINT,
-      eventData: { side: teamId === teamAId ? 'A' : 'B', detail: type },
+      eventData: { pointType: type },
       teamId,
     });
   };
@@ -1398,8 +1439,8 @@ function RallyScoringPad({
   // Volleyball-specific extras
   const handleVolleyballExtra = (type: string, teamId: string) => {
     onSubmit({
-      eventType: EVENT_TYPES.RALLY_POINT,
-      eventData: { side: teamId === teamAId ? 'A' : 'B', detail: type },
+      eventType: type as string,
+      eventData: {},
       teamId,
     });
   };

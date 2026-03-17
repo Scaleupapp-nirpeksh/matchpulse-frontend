@@ -12,8 +12,9 @@ interface WinProbabilityProps {
 }
 
 export function WinProbability({ teamA, teamB, teamAName, teamBName, teamAColor = '#10B981', teamBColor = '#6366F1' }: WinProbabilityProps) {
-  const pctA = Math.round(teamA * 100);
-  const pctB = Math.round(teamB * 100);
+  // Backend sends values as percentages (0-100) not fractions (0-1)
+  const pctA = teamA > 1 ? Math.round(teamA) : Math.round(teamA * 100);
+  const pctB = teamB > 1 ? Math.round(teamB) : Math.round(teamB * 100);
 
   return (
     <div className="space-y-2">

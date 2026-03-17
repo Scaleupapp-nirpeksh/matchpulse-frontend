@@ -1,6 +1,7 @@
 'use client';
 
 import type { Basketball5v5State, Basketball3x3State } from '@/types/sport-states';
+import { useGameClock } from '@/hooks/use-game-clock';
 
 interface BasketballScoreProps {
   state: Basketball5v5State | Basketball3x3State;
@@ -18,6 +19,7 @@ function formatClock(seconds: number): string {
 
 export function BasketballScore({ state, teamAName, teamBName, is3x3 = false, compact = false }: BasketballScoreProps) {
   const is5v5 = !is3x3 && 'quarter' in state;
+  const liveClock = useGameClock(state.clockSeconds, state.clockRunning, state.clockStartedAt);
 
   if (compact) {
     return (
@@ -31,7 +33,7 @@ export function BasketballScore({ state, teamAName, teamBName, is3x3 = false, co
           <span className="score-display text-2xl font-bold">{state.scoreB}</span>
         </div>
         <div className="text-xs text-text-tertiary text-center">
-          {is5v5 ? `Q${(state as Basketball5v5State).quarter}` : 'Game'} | {formatClock(state.clockSeconds)}
+          {is5v5 ? `Q${(state as Basketball5v5State).quarter}` : 'Game'} | {formatClock(liveClock)}
         </div>
       </div>
     );
@@ -60,10 +62,10 @@ export function BasketballScore({ state, teamAName, teamBName, is3x3 = false, co
               {(state as Basketball5v5State).isOvertime ? 'OT' : `Q${(state as Basketball5v5State).quarter}`}
             </span>
           )}
-          {!is3x3 && <span className="text-xs font-mono text-accent">{formatClock(state.clockSeconds)}</span>}
+          {!is3x3 && <span className="text-xs font-mono text-accent">{formatClock(liveClock)}</span>}
           {is3x3 && (
             <span className="text-xs text-text-secondary">
-              Target: {(state as Basketball3x3State).targetScore} | {formatClock(state.clockSeconds)}
+              Target: {(state as Basketball3x3State).targetScore} | {formatClock(liveClock)}
             </span>
           )}
         </div>

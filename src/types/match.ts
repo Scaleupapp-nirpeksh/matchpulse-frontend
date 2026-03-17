@@ -1,8 +1,13 @@
 import type { SportState } from './sport-states';
 
 export interface MatchTeam {
-  teamId: string | { _id: string; name: string; shortName?: string; color?: string; logoUrl?: string; players?: any[] };
+  _id?: string;
+  teamId?: string | { _id: string; name: string; shortName?: string; color?: string; logoUrl?: string; players?: any[] };
   name?: string;
+  shortName?: string;
+  color?: string;
+  logoUrl?: string;
+  players?: { playerId: string; jerseyNumber?: number; position?: string; role?: string; isPlaying?: boolean; _id?: string }[];
 }
 
 export interface Match {

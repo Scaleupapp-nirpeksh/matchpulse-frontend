@@ -20,7 +20,7 @@ interface LiveMatchState {
 interface ScoreUpdatePayload {
   currentState: SportState;
   event: ScoringEvent;
-  winProbability: { teamA: number; teamB: number };
+  winProbability: { teamA?: number; teamB?: number; a?: number; b?: number };
   undone?: boolean;
 }
 
@@ -50,21 +50,39 @@ export function useLiveMatch(matchId: string | undefined, initialMatch?: Match) 
   // Join the match room
   useMatchRoom(matchId);
 
+  // Sync initial match data when it becomes available
+  useEffect(() => {
+    if (!initialMatch) return;
+    setState((prev) => ({
+      ...prev,
+      currentState: (initialMatch.currentState as SportState) || prev.currentState,
+      status: initialMatch.status || prev.status,
+      winProbability: initialMatch.winProbability || prev.winProbability,
+    }));
+  }, [initialMatch?._id, initialMatch?.status, initialMatch?.winProbability?.a, initialMatch?.winProbability?.b]);
+
   // Handle initial match state from server
   useEffect(() => {
     if (!matchId) return;
 
     const socket = connectSocket();
 
-    const handleMatchState = (payload: { matchId: string; currentState: SportState; status: string; winProbability: { teamA: number; teamB: number } }) => {
+    const handleMatchState = (payload: { matchId: string; currentState: SportState; status: string; winProbability?: { teamA?: number; teamB?: number; a?: number; b?: number } }) => {
       if (payload.matchId === matchId) {
-        setState((prev) => ({
-          ...prev,
-          currentState: payload.currentState,
-          status: payload.status as Match['status'],
-          winProbability: payload.winProbability ? { a: payload.winProbability.teamA, b: payload.winProbability.teamB } : prev.winProbability,
-          lastUpdate: Date.now(),
-        }));
+        setState((prev) => {
+          let wp = prev.winProbability;
+          if (payload.winProbability) {
+            const p = payload.winProbability;
+            wp = { a: p.a ?? p.teamA ?? 50, b: p.b ?? p.teamB ?? 50 };
+          }
+          return {
+            ...prev,
+            currentState: payload.currentState,
+            status: payload.status as Match['status'],
+            winProbability: wp,
+            lastUpdate: Date.now(),
+          };
+        });
       }
     };
 
@@ -78,15 +96,22 @@ export function useLiveMatch(matchId: string | undefined, initialMatch?: Match) 
     const socket = getSocket();
 
     const handleScoreUpdate = (payload: ScoreUpdatePayload) => {
-      setState((prev) => ({
-        ...prev,
-        currentState: payload.currentState,
-        winProbability: payload.winProbability ? { a: payload.winProbability.teamA, b: payload.winProbability.teamB } : prev.winProbability,
-        events: payload.undone
-          ? prev.events.map((e) => (e._id === payload.event._id ? { ...e, isUndone: true } : e))
-          : [...prev.events, payload.event],
-        lastUpdate: Date.now(),
-      }));
+      setState((prev) => {
+        let wp = prev.winProbability;
+        if (payload.winProbability) {
+          const p = payload.winProbability;
+          wp = { a: p.a ?? p.teamA ?? 50, b: p.b ?? p.teamB ?? 50 };
+        }
+        return {
+          ...prev,
+          currentState: payload.currentState,
+          winProbability: wp,
+          events: payload.undone
+            ? prev.events.map((e) => (e._id === payload.event._id ? { ...e, isUndone: true } : e))
+            : [...prev.events, payload.event],
+          lastUpdate: Date.now(),
+        };
+      });
     };
 
     socket.on('score_update', handleScoreUpdate);

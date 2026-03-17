@@ -1,6 +1,7 @@
 'use client';
 
 import type { FootballState } from '@/types/sport-states';
+import { useGameClock } from '@/hooks/use-game-clock';
 import { cn } from '@/lib/utils';
 
 interface FootballScoreProps {
@@ -26,6 +27,8 @@ function formatClock(seconds: number): string {
 }
 
 export function FootballScore({ state, teamAName, teamBName, compact = false }: FootballScoreProps) {
+  // Football counts UP (elapsed time, e.g. 0:00 → 45:00)
+  const liveClock = useGameClock(state.clockSeconds, state.clockRunning, state.clockStartedAt, 'up');
   const goals = (state?.events || []).filter((e) => e.type === 'goal');
   const goalsA = goals.filter((g) => g.teamId === state.teamAId);
   const goalsB = goals.filter((g) => g.teamId === state.teamBId);
@@ -64,7 +67,7 @@ export function FootballScore({ state, teamAName, teamBName, compact = false }: 
         <div className="mt-1 flex items-center justify-center gap-2">
           <span className="text-xs font-medium text-text-secondary">{halfLabels[state.half] || ''}</span>
           {state.clockRunning && (
-            <span className="text-xs font-mono text-accent">{formatClock(state.clockSeconds)}</span>
+            <span className="text-xs font-mono text-accent">{formatClock(liveClock)}</span>
           )}
         </div>
       </div>

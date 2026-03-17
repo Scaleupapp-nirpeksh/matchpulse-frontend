@@ -59,7 +59,7 @@ export async function updateMatch(id: string, data: Partial<CreateMatchData>) {
 }
 
 export async function assignScorer(matchId: string, scorerId: string) {
-  return apiClient.put(`/matches/${matchId}/scorer`, { scorer: scorerId });
+  return apiClient.put(`/matches/${matchId}/scorer`, { scorerUserId: scorerId });
 }
 
 export async function matchLifecycle(matchId: string, data: MatchLifecycleData) {
