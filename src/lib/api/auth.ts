@@ -83,3 +83,11 @@ export async function updateProfile(data: UpdateProfileData) {
 export async function changePassword(data: ChangePasswordData) {
   return apiClient.put('/auth/change-password', data);
 }
+
+export async function forgotPassword(email: string) {
+  return apiClient.post('/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token: string, password: string) {
+  return apiClient.post('/auth/reset-password', { token, password });
+}

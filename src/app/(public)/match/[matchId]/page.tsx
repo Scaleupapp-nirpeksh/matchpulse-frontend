@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Clock,
   AlertCircle,
+  Bell,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,8 @@ import { CommentaryFeed } from '@/components/matches/commentary-feed';
 import { WinProbability } from '@/components/matches/win-probability';
 import { SportIcon } from '@/components/matches/sport-icon';
 import { useLiveMatch } from '@/hooks/use-live-match';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
+import { useAuth } from '@/hooks/use-auth';
 import { getMatch } from '@/lib/api/matches';
 import { getMatchEvents, getMatchStats } from '@/lib/api/scoring';
 import { getSportConfig } from '@/lib/sports-config';
@@ -271,6 +274,10 @@ export default function MatchDetailPage() {
   });
 
   const match = matchData as Match | undefined;
+
+  // Push notifications
+  const { isAuthenticated } = useAuth();
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: subscribePush } = usePushNotifications();
 
   // Fetch match events
   const { data: eventsData } = useQuery({
@@ -529,6 +536,31 @@ export default function MatchDetailPage() {
             <p className="text-sm text-gray-600 leading-relaxed">
               {match.aiSummary}
             </p>
+          </motion.div>
+        )}
+
+        {/* Push notification opt-in */}
+        {isLive && isAuthenticated && pushSupported && !pushSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+            className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <Bell size={14} className="text-emerald-600" />
+              </div>
+              <p className="text-sm text-gray-600">
+                Get notified when scores update in this match
+              </p>
+            </div>
+            <button
+              onClick={() => subscribePush()}
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 whitespace-nowrap"
+            >
+              Enable alerts
+            </button>
           </motion.div>
         )}
 

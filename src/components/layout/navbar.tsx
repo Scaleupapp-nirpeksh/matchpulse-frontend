@@ -7,6 +7,7 @@ import { Menu, X, Zap, ChevronDown, LogOut, LayoutDashboard, PenLine, User } fro
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { NotificationBell } from '@/components/layout/notification-bell';
 import { useAuth } from '@/hooks/use-auth';
 
 const navLinks = [
@@ -86,6 +87,8 @@ export function Navbar() {
         {/* Right: Auth buttons or user avatar (desktop) */}
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated && user ? (
+            <>
+            <NotificationBell />
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -151,6 +154,7 @@ export function Navbar() {
                 </div>
               )}
             </div>
+            </>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
