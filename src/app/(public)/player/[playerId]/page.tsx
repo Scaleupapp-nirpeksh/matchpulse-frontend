@@ -66,6 +66,69 @@ function PlayerSkeleton() {
   );
 }
 
+// Highlight stats: pick the most important numbers for quick overview cards
+const HIGHLIGHT_KEYS: Record<string, string[]> = {
+  cricket: ['runs', 'wickets', 'matches', 'battingAvg', 'bowlingAvg', 'catches', 'innings', 'fifties', 'hundreds', 'strikeRate'],
+  football: ['goals', 'assists', 'matches', 'yellowCards', 'redCards', 'minutesPlayed', 'cleanSheets'],
+  'basketball_5v5': ['points', 'rebounds', 'assists', 'matches', 'steals', 'blocks', 'threePointers'],
+  'basketball_3x3': ['points', 'rebounds', 'assists', 'matches', 'steals', 'blocks'],
+  volleyball: ['kills', 'blocks', 'aces', 'matches', 'digs', 'assists'],
+  tennis: ['matchesWon', 'matchesLost', 'aces', 'doubleFaults', 'winRate'],
+  table_tennis: ['matchesWon', 'matchesLost', 'points', 'winRate'],
+  badminton: ['matchesWon', 'matchesLost', 'smashes', 'winRate'],
+  squash: ['matchesWon', 'matchesLost', 'points', 'winRate'],
+};
+
+function getHighlightStats(stats: Record<string, unknown>, sport?: string): { key: string; value: unknown }[] {
+  const priorityKeys = sport ? (HIGHLIGHT_KEYS[sport] || []) : [];
+  const result: { key: string; value: unknown }[] = [];
+
+  // First add priority keys
+  for (const key of priorityKeys) {
+    if (stats[key] !== undefined && stats[key] !== null) {
+      result.push({ key, value: stats[key] });
+    }
+  }
+
+  // Then add any numeric values not already included
+  if (result.length < 4) {
+    for (const [key, value] of Object.entries(stats)) {
+      if (result.some((r) => r.key === key)) continue;
+      if (key.startsWith('_') || key === 'playerId' || key === 'sport' || key === 'sportType' || key === 'player' || key === 'id' || key === '__v') continue;
+      if (typeof value === 'number') {
+        result.push({ key, value });
+      }
+      if (result.length >= 6) break;
+    }
+  }
+
+  return result.slice(0, 6);
+}
+
+function StatHighlightCards({ stats, sport }: { stats: Record<string, unknown>; sport?: string }) {
+  const highlights = getHighlightStats(stats, sport);
+
+  if (highlights.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+      {highlights.map(({ key, value }) => (
+        <div
+          key={key}
+          className="bg-white border border-gray-200 rounded-xl p-4 text-center"
+        >
+          <p className="text-2xl font-bold text-gray-900">
+            {typeof value === 'number' ? (value % 1 !== 0 ? value.toFixed(2) : value) : String(value)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1 capitalize">
+            {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatsSection({ playerId }: { playerId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['player-stats', playerId],
@@ -78,8 +141,13 @@ function StatsSection({ playerId }: { playerId: string }) {
   if (isLoading) {
     return (
       <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 rounded" />
+          <Skeleton key={`r${i}`} className="h-12 rounded" />
         ))}
       </div>
     );
@@ -131,6 +199,7 @@ function StatsSection({ playerId }: { playerId: string }) {
           );
           return (
             <TabsContent key={sportKey} value={sportKey}>
+              <StatHighlightCards stats={group as Record<string, unknown>} sport={sportKey} />
               <StatEntries entries={entries} />
             </TabsContent>
           );
@@ -140,6 +209,7 @@ function StatsSection({ playerId }: { playerId: string }) {
   }
 
   // Single stats group
+  const sportKey = statsArray[0].sport || statsArray[0].sportType;
   const entries = Object.entries(statsArray[0]).filter(
     ([k]) =>
       k !== 'sport' &&
@@ -151,7 +221,12 @@ function StatsSection({ playerId }: { playerId: string }) {
       k !== '__v'
   );
 
-  return <StatEntries entries={entries} />;
+  return (
+    <>
+      <StatHighlightCards stats={statsArray[0] as Record<string, unknown>} sport={sportKey as string} />
+      <StatEntries entries={entries} />
+    </>
+  );
 }
 
 function StatEntries({ entries }: { entries: [string, unknown][] }) {
@@ -225,6 +300,123 @@ function MatchHistorySection({ playerId }: { playerId: string }) {
         </motion.div>
       ))}
     </motion.div>
+  );
+}
+
+function AchievementsSection({ playerId }: { playerId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['player-matches', playerId],
+    queryFn: async () => {
+      const res = await getPlayerMatches(playerId);
+      return ((res as unknown as { data: Match[] }).data ?? (res as unknown as Match[])) as Match[];
+    },
+  });
+
+  const matches = Array.isArray(data) ? data : [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  // Extract MOTM awards from completed matches
+  const motmAwards = matches.filter(
+    (m) => m.status === 'completed' && m.resultSummary?.motm === playerId
+  );
+  const totalMatches = matches.length;
+  const completedMatches = matches.filter((m) => m.status === 'completed');
+  const wins = completedMatches.filter((m) => {
+    if (!m.resultSummary?.winnerId) return false;
+    // Check if the player's team won (approximate)
+    return true; // Backend would need to provide this
+  });
+
+  // Show summary stats
+  const achievements = [
+    { label: 'Total Matches', value: totalMatches, icon: '🏟️' },
+    { label: 'Completed Matches', value: completedMatches.length, icon: '✅' },
+    { label: 'Man of the Match', value: motmAwards.length, icon: '🏆' },
+  ];
+
+  // Find unique sports
+  const sports = [...new Set(matches.map((m) => m.sportType))];
+
+  return (
+    <div className="space-y-6">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {achievements.map(({ label, value, icon }) => (
+          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+            <span className="text-2xl block mb-1">{icon}</span>
+            <p className="text-xl font-bold text-gray-900">{value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Sports Played */}
+      {sports.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Sports Played</h3>
+          <div className="flex flex-wrap gap-2">
+            {sports.map((sport) => {
+              const count = matches.filter((m) => m.sportType === sport).length;
+              return (
+                <div
+                  key={sport}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200"
+                >
+                  <SportIcon sport={sport} size={14} />
+                  <span className="text-sm text-gray-700">{SPORT_CONFIGS[sport]?.name || sport}</span>
+                  <Badge variant="default" size="sm">{count}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* MOTM Awards */}
+      {motmAwards.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Trophy size={14} className="text-amber-500" />
+            Man of the Match Awards
+          </h3>
+          <div className="space-y-2">
+            {motmAwards.map((match) => (
+              <Link
+                key={match._id}
+                href={`/match/${match._id}`}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <SportIcon sport={match.sportType} size={14} />
+                  <span className="text-sm text-gray-700">
+                    {typeof match.teamA?.teamId === 'object' ? match.teamA.teamId.name : match.teamA?.name} vs{' '}
+                    {typeof match.teamB?.teamId === 'object' ? match.teamB.teamId.name : match.teamB?.name}
+                  </span>
+                </div>
+                <Badge variant="accent" size="sm">MOTM</Badge>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {totalMatches === 0 && (
+        <EmptyState
+          icon={Trophy}
+          title="No achievements yet"
+          description="Achievements will appear here as the player participates in matches and tournaments"
+        />
+      )}
+    </div>
   );
 }
 
@@ -351,7 +543,11 @@ export default function PlayerProfilePage() {
               </TabsTrigger>
               <TabsTrigger value="matches" className="gap-1.5">
                 <History size={14} />
-                Match History
+                Matches
+              </TabsTrigger>
+              <TabsTrigger value="achievements" className="gap-1.5">
+                <Trophy size={14} />
+                Achievements
               </TabsTrigger>
             </TabsList>
 
@@ -361,6 +557,10 @@ export default function PlayerProfilePage() {
 
             <TabsContent value="matches">
               <MatchHistorySection playerId={playerId} />
+            </TabsContent>
+
+            <TabsContent value="achievements">
+              <AchievementsSection playerId={playerId} />
             </TabsContent>
           </Tabs>
         </motion.div>

@@ -24,6 +24,10 @@ export async function unregisterPushSubscription(token: string) {
   return apiClient.delete(`/notifications/push-subscription/${token}`);
 }
 
+export async function getNotificationPreferences() {
+  return apiClient.get('/notifications/preferences');
+}
+
 export async function updateNotificationPreferences(preferences: Record<string, unknown>) {
   return apiClient.put('/notifications/preferences', preferences);
 }

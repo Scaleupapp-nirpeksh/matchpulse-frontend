@@ -13,6 +13,7 @@ import {
   FileText,
   ClipboardList,
   BarChart3,
+  GitBranch,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +21,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LiveMatchCard } from '@/components/matches/live-match-card';
 import { StandingsTable } from '@/components/matches/standings-table';
+import { BracketView } from '@/components/tournament/bracket-view';
 import { SportIcon } from '@/components/matches/sport-icon';
 import { getTournament } from '@/lib/api/tournaments';
 import { getTournamentMatches } from '@/lib/api/matches';
@@ -378,6 +380,56 @@ function TeamsTab({ tournamentId }: { tournamentId: string }) {
   );
 }
 
+function BracketTab({ tournamentId }: { tournamentId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['tournament-matches', tournamentId],
+    queryFn: async () => {
+      const res = await getTournamentMatches(tournamentId);
+      return ((res as unknown as { data: Match[] }).data ?? (res as unknown as Match[])) as Match[];
+    },
+  });
+
+  const matches = Array.isArray(data) ? data : [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  // Filter to knockout stage matches only
+  const knockoutMatches = matches.filter((m) => {
+    const stage = (m.stage || '').toLowerCase();
+    return (
+      stage.includes('final') ||
+      stage.includes('quarter') ||
+      stage.includes('semi') ||
+      stage.includes('round_of') ||
+      stage.includes('knockout') ||
+      stage.includes('elimination')
+    );
+  });
+
+  // If no specific knockout stages, show all matches as bracket
+  const bracketMatches = knockoutMatches.length > 0 ? knockoutMatches : matches;
+
+  if (bracketMatches.length === 0) {
+    return (
+      <EmptyState
+        icon={GitBranch}
+        title="No bracket matches yet"
+        description="Bracket matches will appear here once the knockout stage begins"
+      />
+    );
+  }
+
+  return <BracketView matches={bracketMatches} />;
+}
+
 export default function TournamentPage() {
   const params = useParams();
   const tournamentId = params.id as string;
@@ -513,6 +565,12 @@ export default function TournamentPage() {
                 <BarChart3 size={14} />
                 Standings
               </TabsTrigger>
+              {(tournament.format === 'knockout' || tournament.format === 'group_knockout') && (
+                <TabsTrigger value="bracket" className="gap-1.5">
+                  <GitBranch size={14} />
+                  Bracket
+                </TabsTrigger>
+              )}
               <TabsTrigger value="teams" className="gap-1.5">
                 <Users size={14} />
                 Teams
@@ -533,6 +591,12 @@ export default function TournamentPage() {
                 sportType={tournament.sportType}
               />
             </TabsContent>
+
+            {(tournament.format === 'knockout' || tournament.format === 'group_knockout') && (
+              <TabsContent value="bracket">
+                <BracketTab tournamentId={id} />
+              </TabsContent>
+            )}
 
             <TabsContent value="teams">
               <TeamsTab tournamentId={id} />

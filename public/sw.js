@@ -1,5 +1,82 @@
-// MatchPulse Push Notification Service Worker
+// MatchPulse Service Worker — Push Notifications + Offline Caching
 
+const CACHE_NAME = 'matchpulse-v1';
+const OFFLINE_URL = '/offline';
+
+// Static assets to pre-cache for offline shell
+const PRECACHE_URLS = [
+  '/',
+  '/offline',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/badge-72.png',
+];
+
+// Install: pre-cache the app shell
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_URLS).catch(() => {
+        // Non-critical: offline will still partially work
+      });
+    })
+  );
+  self.skipWaiting();
+});
+
+// Activate: clean up old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch: network-first with offline fallback
+self.addEventListener('fetch', (event) => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Skip API requests and socket connections
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api') || url.hostname !== self.location.hostname) return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Cache successful page navigations
+        if (response.ok && event.request.mode === 'navigate') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Offline: try cache first
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          // For navigation requests, show offline page
+          if (event.request.mode === 'navigate') {
+            return caches.match(OFFLINE_URL) || new Response(
+              '<html><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h1>You\'re offline</h1><p>Check your connection and try again.</p></div></body></html>',
+              { headers: { 'Content-Type': 'text/html' } }
+            );
+          }
+          return new Response('', { status: 503 });
+        });
+      })
+  );
+});
+
+// Push Notifications
 self.addEventListener('push', (event) => {
   let data = { title: 'MatchPulse', body: 'New update available' };
 

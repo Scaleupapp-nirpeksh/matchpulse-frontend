@@ -14,6 +14,7 @@ import { getSportConfig } from '@/lib/sports-config';
 import { formatDate, formatRelativeTime } from '@/lib/utils';
 import type { Match } from '@/types/match';
 import { Clipboard, Play, Clock, CheckCircle } from 'lucide-react';
+import { InstallBanner } from '@/components/pwa/install-banner';
 
 function getTeamName(team: Match['teamA']): string {
   if (typeof team.teamId === 'object' && team.teamId !== null) {
@@ -119,6 +120,7 @@ export default function ScorerMyMatchesPage() {
 
   return (
     <div className="space-y-6 p-4">
+      <InstallBanner />
       <h1 className="text-xl font-bold text-text-primary">My Matches</h1>
 
       {/* Live Matches */}

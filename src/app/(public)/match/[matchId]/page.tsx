@@ -17,6 +17,7 @@ import {
   Clock,
   AlertCircle,
   Bell,
+  Zap,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,9 @@ import { SportScoreDisplay } from '@/components/matches/sport-displays/sport-sco
 import { MatchTimeline } from '@/components/matches/match-timeline';
 import { CommentaryFeed } from '@/components/matches/commentary-feed';
 import { WinProbability } from '@/components/matches/win-probability';
+import { MatchInsights } from '@/components/matches/match-insights';
+import { KeyMoments } from '@/components/matches/key-moments';
+import { TeamComparison } from '@/components/matches/team-comparison';
 import { SportIcon } from '@/components/matches/sport-icon';
 import { useLiveMatch } from '@/hooks/use-live-match';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
@@ -148,6 +152,43 @@ function StatsTab({ matchId }: { matchId: string }) {
         );
       })}
     </div>
+  );
+}
+
+function TeamComparisonTab({ matchId, teamAName, teamBName }: { matchId: string; teamAName: string; teamBName: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['match-stats', matchId],
+    queryFn: async () => {
+      const res = await getMatchStats(matchId);
+      return res as unknown as Record<string, unknown>;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  const stats = (data as Record<string, unknown>)?.data ?? data;
+  if (!stats || typeof stats !== 'object' || Object.keys(stats as Record<string, unknown>).length === 0) {
+    return (
+      <div className="text-center py-10 text-sm text-gray-400">
+        No comparison stats available
+      </div>
+    );
+  }
+
+  return (
+    <TeamComparison
+      stats={stats as Record<string, unknown>}
+      teamAName={teamAName}
+      teamBName={teamBName}
+    />
   );
 }
 
@@ -501,7 +542,7 @@ export default function MatchDetailPage() {
         </motion.div>
 
         {/* Win Probability Bar */}
-        {winProbability && isLive && (
+        {winProbability && (isLive || match.status === 'completed') && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -584,6 +625,12 @@ export default function MatchDetailPage() {
                 <BarChart3 size={14} />
                 Stats
               </TabsTrigger>
+              {match.status === 'completed' && (
+                <TabsTrigger value="analysis" className="gap-1.5">
+                  <Zap size={14} />
+                  Analysis
+                </TabsTrigger>
+              )}
               <TabsTrigger value="info" className="gap-1.5">
                 <Info size={14} />
                 Info
@@ -610,6 +657,48 @@ export default function MatchDetailPage() {
                 <StatsTab matchId={matchId} />
               </div>
             </TabsContent>
+
+            {match.status === 'completed' && (
+              <TabsContent value="analysis">
+                <div className="space-y-6">
+                  {/* Match Insights Cards */}
+                  {match.matchInsights && Object.keys(match.matchInsights).length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <Sparkles size={14} className="text-emerald-600" />
+                        Match Insights
+                      </h3>
+                      <MatchInsights
+                        insights={match.matchInsights}
+                        aiSummary={match.aiSummary}
+                        sportType={match.sportType}
+                      />
+                    </div>
+                  )}
+
+                  {/* Key Moments Timeline */}
+                  {allEvents.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <KeyMoments
+                        events={allEvents}
+                        teamAName={teamAShort}
+                        teamBName={teamBShort}
+                        teamAId={typeof match.teamA.teamId === 'object' ? match.teamA.teamId?._id : match.teamA.teamId}
+                      />
+                    </div>
+                  )}
+
+                  {/* Team Comparison */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <TeamComparisonTab
+                      matchId={matchId}
+                      teamAName={teamAShort}
+                      teamBName={teamBShort}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            )}
 
             <TabsContent value="info">
               <div className="bg-white border border-gray-200 rounded-xl p-4">
