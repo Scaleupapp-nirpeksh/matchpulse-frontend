@@ -156,8 +156,9 @@ function LoginPage() {
 
   const onPhoneSubmit = async (data: PhoneValues) => {
     try {
-      await sendOtp({ phone: data.phone, purpose: 'login' });
-      setPhoneNumber(data.phone);
+      const fullPhone = `+91${data.phone.replace(/^(\+91|91)/, '')}`;
+      await sendOtp({ phone: fullPhone, purpose: 'login' });
+      setPhoneNumber(fullPhone);
       setPhoneStep('otp');
       setOtpValue('');
       toast.success('OTP sent to your phone');
@@ -350,7 +351,7 @@ function LoginPage() {
                     Enter the 6-digit code sent to
                   </p>
                   <p className="text-sm font-medium text-text-primary mt-0.5">
-                    +91 {phoneNumber.slice(0, 3)}****{phoneNumber.slice(-3)}
+                    {phoneNumber.slice(0, 6)}****{phoneNumber.slice(-3)}
                   </p>
                 </div>
 

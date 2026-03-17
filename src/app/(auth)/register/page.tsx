@@ -71,7 +71,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterValues) => {
     try {
       await authRegister({
-        name: data.fullName,
+        fullName: data.fullName,
         email: data.email,
         password: data.password,
         phone: data.phone || undefined,

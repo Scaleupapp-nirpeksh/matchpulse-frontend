@@ -3,7 +3,7 @@ import apiClient from './client';
 export interface RegisterEmailData {
   email: string;
   password: string;
-  name: string;
+  fullName: string;
   phone?: string;
 }
 
@@ -28,7 +28,7 @@ export interface VerifyOtpData {
 }
 
 export interface UpdateProfileData {
-  name?: string;
+  fullName?: string;
   phone?: string;
   avatar?: string;
   [key: string]: unknown;

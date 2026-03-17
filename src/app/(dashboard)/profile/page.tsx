@@ -110,7 +110,7 @@ export default function ProfilePage() {
   const profileMutation = useMutation({
     mutationFn: (data: ProfileFormValues) =>
       updateProfile({
-        name: data.fullName,
+        fullName: data.fullName,
         bio: data.bio,
         preferredSports,
         privacySettings: { showPhoto, showStats },

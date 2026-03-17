@@ -20,7 +20,7 @@ export interface AuthContextType {
   register: (data: {
     email: string;
     password: string;
-    name: string;
+    fullName: string;
     phone?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
@@ -81,12 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (data: { email: string; password: string; name: string; phone?: string }) => {
+    async (data: { email: string; password: string; fullName: string; phone?: string }) => {
       const payload: RegisterEmailData = {
         email: data.email,
         password: data.password,
-        name: data.name,
-        phone: data.phone,
+        fullName: data.fullName,
+        phone: data.phone ? `+91${data.phone.replace(/^(\+91|91)/, '')}` : undefined,
       };
       const res = (await registerEmail(payload)) as unknown as AuthResponse;
       storeTokens(res.accessToken, res.refreshToken);
