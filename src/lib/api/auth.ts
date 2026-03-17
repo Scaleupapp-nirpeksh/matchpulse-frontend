@@ -40,11 +40,11 @@ export interface ChangePasswordData {
 }
 
 export async function registerEmail(data: RegisterEmailData) {
-  return apiClient.post('/auth/register', data);
+  return apiClient.post('/auth/register/email', data);
 }
 
 export async function loginEmail(data: LoginEmailData) {
-  return apiClient.post('/auth/login', data);
+  return apiClient.post('/auth/login/email', data);
 }
 
 export async function loginPhone(data: LoginPhoneData) {
@@ -69,7 +69,7 @@ export async function logout() {
 }
 
 export async function logoutAll() {
-  return apiClient.post('/auth/logout/all');
+  return apiClient.post('/auth/logout-all');
 }
 
 export async function getProfile() {
@@ -77,9 +77,9 @@ export async function getProfile() {
 }
 
 export async function updateProfile(data: UpdateProfileData) {
-  return apiClient.patch('/auth/profile', data);
+  return apiClient.put('/auth/profile', data);
 }
 
 export async function changePassword(data: ChangePasswordData) {
-  return apiClient.post('/auth/change-password', data);
+  return apiClient.put('/auth/change-password', data);
 }

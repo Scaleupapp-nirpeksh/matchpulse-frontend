@@ -9,21 +9,21 @@ export async function getUnreadCount() {
 }
 
 export async function markAllRead() {
-  return apiClient.post('/notifications/mark-all-read');
+  return apiClient.put('/notifications/read-all');
 }
 
 export async function markRead(id: string) {
-  return apiClient.patch(`/notifications/${id}/read`);
+  return apiClient.put(`/notifications/${id}/read`);
 }
 
 export async function registerPushSubscription(subscription: Record<string, unknown>) {
-  return apiClient.post('/notifications/push/subscribe', subscription);
+  return apiClient.post('/notifications/push-subscription', subscription);
 }
 
-export async function unregisterPushSubscription(endpoint: string) {
-  return apiClient.post('/notifications/push/unsubscribe', { endpoint });
+export async function unregisterPushSubscription(token: string) {
+  return apiClient.delete(`/notifications/push-subscription/${token}`);
 }
 
 export async function updateNotificationPreferences(preferences: Record<string, unknown>) {
-  return apiClient.patch('/notifications/preferences', preferences);
+  return apiClient.put('/notifications/preferences', preferences);
 }

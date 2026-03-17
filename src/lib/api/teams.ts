@@ -45,7 +45,7 @@ export async function createTeam(data: CreateTeamData) {
 }
 
 export async function getTournamentTeams(tournamentId: string) {
-  return apiClient.get(`/tournaments/${tournamentId}/teams`);
+  return apiClient.get(`/teams/tournament/${tournamentId}`);
 }
 
 export async function getTeam(id: string) {
@@ -53,7 +53,7 @@ export async function getTeam(id: string) {
 }
 
 export async function updateTeam(id: string, data: Partial<CreateTeamData>) {
-  return apiClient.patch(`/teams/${id}`, data);
+  return apiClient.put(`/teams/${id}`, data);
 }
 
 export async function deleteTeam(id: string) {
@@ -69,7 +69,7 @@ export async function removePlayer(teamId: string, playerId: string) {
 }
 
 export async function bulkImportTeams(tournamentId: string, data: FormData) {
-  return apiClient.post(`/tournaments/${tournamentId}/teams/import`, data, {
+  return apiClient.post(`/teams/tournament/${tournamentId}/bulk-import`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }

@@ -57,11 +57,11 @@ export async function getOrganization(id: string) {
 }
 
 export async function updateOrganization(id: string, data: Partial<CreateOrganizationData>) {
-  return apiClient.patch(`/organizations/${id}`, data);
+  return apiClient.put(`/organizations/${id}`, data);
 }
 
 export async function createInvite(orgId: string, data: CreateInviteData) {
-  return apiClient.post(`/organizations/${orgId}/invites`, data);
+  return apiClient.post(`/organizations/${orgId}/invite`, data);
 }
 
 export async function joinOrganization(inviteCode: string) {

@@ -13,9 +13,9 @@ export async function getPlayerMatches(id: string) {
 }
 
 export async function getOrgPlayers(orgId: string) {
-  return apiClient.get(`/organizations/${orgId}/players`);
+  return apiClient.get(`/players/org/${orgId}`);
 }
 
 export async function updatePlayer(id: string, data: Record<string, unknown>) {
-  return apiClient.patch(`/players/${id}`, data);
+  return apiClient.put(`/players/${id}`, data);
 }

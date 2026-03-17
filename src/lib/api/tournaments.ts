@@ -55,17 +55,17 @@ export async function getTournament(id: string) {
 }
 
 export async function getOrgTournaments(orgId: string, params?: TournamentQueryParams) {
-  return apiClient.get(`/organizations/${orgId}/tournaments`, { params });
+  return apiClient.get(`/tournaments/org/${orgId}`, { params });
 }
 
 export async function updateTournament(id: string, data: Partial<CreateTournamentData>) {
-  return apiClient.patch(`/tournaments/${id}`, data);
+  return apiClient.put(`/tournaments/${id}`, data);
 }
 
 export async function updateTournamentStatus(id: string, status: string) {
-  return apiClient.patch(`/tournaments/${id}/status`, { status });
+  return apiClient.put(`/tournaments/${id}/status`, { status });
 }
 
 export async function generateFixtures(id: string) {
-  return apiClient.post(`/tournaments/${id}/fixtures`);
+  return apiClient.post(`/tournaments/${id}/fixtures/generate`);
 }

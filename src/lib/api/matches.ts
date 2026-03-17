@@ -51,15 +51,15 @@ export async function getMatch(id: string) {
 }
 
 export async function getTournamentMatches(tournamentId: string) {
-  return apiClient.get(`/tournaments/${tournamentId}/matches`);
+  return apiClient.get(`/matches/tournament/${tournamentId}`);
 }
 
 export async function updateMatch(id: string, data: Partial<CreateMatchData>) {
-  return apiClient.patch(`/matches/${id}`, data);
+  return apiClient.put(`/matches/${id}`, data);
 }
 
 export async function assignScorer(matchId: string, scorerId: string) {
-  return apiClient.post(`/matches/${matchId}/scorer`, { scorer: scorerId });
+  return apiClient.put(`/matches/${matchId}/scorer`, { scorer: scorerId });
 }
 
 export async function matchLifecycle(matchId: string, data: MatchLifecycleData) {
@@ -67,5 +67,5 @@ export async function matchLifecycle(matchId: string, data: MatchLifecycleData) 
 }
 
 export async function getMyMatches() {
-  return apiClient.get('/matches/my');
+  return apiClient.get('/matches/scorer/my-matches');
 }

@@ -19,9 +19,9 @@ export async function uploadMedia(data: FormData) {
 }
 
 export async function getPresignedUrl(params: { filename: string; contentType: string; folder?: string }) {
-  return apiClient.get('/upload/presigned-url', { params });
+  return apiClient.post('/upload/presigned', params);
 }
 
-export async function deleteFile(fileUrl: string) {
-  return apiClient.delete('/upload', { data: { fileUrl } });
+export async function deleteFile(key: string) {
+  return apiClient.delete(`/upload/${key}`);
 }
