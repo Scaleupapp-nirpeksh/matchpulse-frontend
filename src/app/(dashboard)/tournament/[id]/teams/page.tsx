@@ -281,10 +281,22 @@ export default function TeamsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-text-primary">Teams</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleBulkImport}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import CSV
-          </Button>
+          <div className="relative group">
+            <Button variant="outline" onClick={handleBulkImport}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block w-72 rounded-lg border border-border bg-white p-3 shadow-lg text-xs text-text-secondary">
+              <p className="font-medium text-text-primary mb-1">CSV Format:</p>
+              <code className="block bg-surface rounded p-2 text-[10px] leading-relaxed">
+                team,player,jersey,position<br/>
+                Avengers,Tony Stark,1,Forward<br/>
+                Avengers,Steve Rogers,2,Defender<br/>
+                X-Men,Wolverine,10,Midfielder
+              </code>
+              <p className="mt-1.5">Columns: team, player, jersey, position, role</p>
+            </div>
+          </div>
           <Dialog open={addTeamOpen} onOpenChange={setAddTeamOpen}>
             <DialogTrigger asChild>
               <Button>
