@@ -129,7 +129,7 @@ export default function TeamsPage() {
       createTeam({
         name: data.name,
         shortName: data.shortName || undefined,
-        tournament: tournamentId,
+        tournamentId: tournamentId,
         seed: data.seed ? Number(data.seed) : undefined,
         color: data.color,
       } as CreateTeamData),

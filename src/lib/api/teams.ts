@@ -3,7 +3,7 @@ import apiClient from './client';
 export interface CreateTeamData {
   name: string;
   shortName?: string;
-  tournament: string;
+  tournamentId: string;
   seed?: number;
   logo?: string;
   [key: string]: unknown;
