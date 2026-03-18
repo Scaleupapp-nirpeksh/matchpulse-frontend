@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -31,6 +31,7 @@ import {
   getMembers,
   createInvite,
 } from '@/lib/api/organizations';
+import { uploadLogo } from '@/lib/api/upload';
 import { USER_ROLES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ import {
   Shield,
   Crown,
   Building2,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface OrgData {
@@ -58,9 +60,13 @@ interface OrgData {
 }
 
 interface MemberData {
-  user: string | { _id: string; fullName: string; email: string; avatarUrl?: string; role: string };
+  _id: string;
+  fullName: string;
+  email: string;
+  avatarUrl?: string;
   role: string;
-  joinedAt: string;
+  user?: string | { _id: string; fullName: string; email: string; avatarUrl?: string; role: string };
+  joinedAt?: string;
 }
 
 interface InviteData {
@@ -94,6 +100,9 @@ export default function ManageOrganizationPage() {
   const queryClient = useQueryClient();
   const [memberSearch, setMemberSearch] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Fetch org data
   const { data: org, isLoading: loadingOrg } = useQuery({
@@ -153,18 +162,23 @@ export default function ManageOrganizationPage() {
   });
 
   // Create invite mutation
+  const [lastInvite, setLastInvite] = useState<{ code: string; url: string } | null>(null);
   const inviteMutation = useMutation({
     mutationFn: (data: InviteForm) =>
       createInvite(orgId, {
         email: data.email || undefined,
         role: data.role,
         expiresInDays: data.expiresInDays ? Number(data.expiresInDays) : 7,
-      }) as unknown as Promise<InviteData>,
+      }) as unknown as Promise<{ inviteCode: string; inviteUrl: string; role: string }>,
     onSuccess: (result) => {
-      toast.success('Invite created');
-      if (result?.code) {
-        navigator.clipboard?.writeText(result.code);
-        toast.success('Invite code copied to clipboard');
+      const code = result?.inviteCode;
+      const url = result?.inviteUrl;
+      if (code) {
+        navigator.clipboard?.writeText(url || code);
+        toast.success('Invite link copied to clipboard! Share it with the member.');
+        setLastInvite({ code, url: url || '' });
+      } else {
+        toast.success('Invite created');
       }
       resetInvite();
       setInviteDialogOpen(false);
@@ -175,14 +189,26 @@ export default function ManageOrganizationPage() {
     },
   });
 
+  // Backend returns flat User objects (with fullName, email, role directly on the object)
+  const getMemberName = (m: MemberData) => {
+    if (m.fullName) return m.fullName;
+    if (typeof m.user === 'object' && m.user?.fullName) return m.user.fullName;
+    return 'Unknown';
+  };
+  const getMemberEmail = (m: MemberData) => {
+    if (m.email) return m.email;
+    if (typeof m.user === 'object' && m.user?.email) return m.user.email;
+    return '';
+  };
+  const getMemberId = (m: MemberData) => m._id || (typeof m.user === 'object' ? m.user?._id : '') || '';
+  const getMemberRole = (m: MemberData) => m.role;
+
   const filteredMembers = members.filter((m) => {
     if (!memberSearch) return true;
-    const user = typeof m.user === 'object' ? m.user : null;
-    if (!user) return false;
     const search = memberSearch.toLowerCase();
     return (
-      user.fullName?.toLowerCase().includes(search) ||
-      user.email?.toLowerCase().includes(search)
+      getMemberName(m).toLowerCase().includes(search) ||
+      getMemberEmail(m).toLowerCase().includes(search)
     );
   });
 
@@ -270,6 +296,50 @@ export default function ManageOrganizationPage() {
                 onSubmit={handleSettingsSubmit((data) => updateMutation.mutate(data))}
                 className="space-y-5"
               >
+                {/* Logo Upload */}
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-surface transition-colors hover:border-accent hover:bg-accent/5"
+                  >
+                    {logoPreview || org?.logoUrl ? (
+                      <img src={logoPreview || org?.logoUrl} alt="Logo" className="h-full w-full object-cover" />
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-text-tertiary group-hover:text-accent" />
+                    )}
+                  </button>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setLogoPreview(URL.createObjectURL(file));
+                      setUploadingLogo(true);
+                      try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const res = (await uploadLogo(formData)) as unknown as { url: string };
+                        await updateOrganization(orgId, { logoUrl: res.url } as Record<string, unknown>);
+                        queryClient.invalidateQueries({ queryKey: ['organization', orgId] });
+                        toast.success('Logo updated');
+                      } catch {
+                        toast.error('Failed to upload logo');
+                        setLogoPreview(null);
+                      } finally {
+                        setUploadingLogo(false);
+                      }
+                    }}
+                  />
+                  <p className="mt-2 text-xs text-text-tertiary">
+                    {uploadingLogo ? 'Uploading...' : 'Click to change logo'}
+                  </p>
+                </div>
+
                 <Input
                   label="Organization Name"
                   {...registerSettings('name')}
@@ -358,27 +428,30 @@ export default function ManageOrganizationPage() {
               ) : (
                 <div className="space-y-2">
                   {filteredMembers.map((member, i) => {
-                    const user = typeof member.user === 'object' ? member.user : null;
+                    const name = getMemberName(member);
+                    const email = getMemberEmail(member);
+                    const id = getMemberId(member);
+                    const role = getMemberRole(member);
                     return (
                       <div
-                        key={user?._id ?? i}
+                        key={id || i}
                         className="flex items-center justify-between rounded-lg border border-border p-3"
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-sm font-medium text-text-secondary">
-                            {user?.fullName?.[0]?.toUpperCase() ?? '?'}
+                            {name[0]?.toUpperCase() ?? '?'}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-text-primary">
-                              {user?.fullName ?? 'Unknown'}
+                              {name}
                             </p>
                             <p className="text-xs text-text-tertiary">
-                              {user?.email ?? ''}
+                              {email}
                             </p>
                           </div>
                         </div>
-                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                          {member.role.replace(/_/g, ' ')}
+                        <Badge variant={getRoleBadgeVariant(role)}>
+                          {role.replace(/_/g, ' ')}
                         </Badge>
                       </div>
                     );
@@ -459,9 +532,35 @@ export default function ManageOrganizationPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="py-8 text-center text-sm text-text-tertiary">
-                Create invite codes above to invite new members to your organization.
-              </p>
+              {lastInvite ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
+                    <p className="text-sm font-medium text-text-primary mb-2">Latest Invite Link</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded bg-surface px-3 py-2 text-xs text-text-primary break-all">
+                        {lastInvite.url}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(lastInvite.url);
+                          toast.success('Copied!');
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-text-tertiary">
+                      Share this link with the person you want to invite. Email delivery may take a few minutes.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="py-8 text-center text-sm text-text-tertiary">
+                  Create invite codes above to invite new members to your organization.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

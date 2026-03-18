@@ -15,8 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SportIcon } from '@/components/matches/sport-icon';
 import { createTournament, type CreateTournamentData } from '@/lib/api/tournaments';
-import { getOrganizations } from '@/lib/api/organizations';
 import { SPORT_LIST, DEFAULT_RULES } from '@/lib/constants';
+import { useAuth } from '@/hooks/use-auth';
 import { getSportConfig, SPORT_CONFIGS } from '@/lib/sports-config';
 import { RulesEditor } from '@/components/tournament/rules-editor';
 import { getRuleMeta } from '@/lib/rules-metadata';
@@ -86,25 +86,33 @@ function NewTournamentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlOrgId = searchParams.get('orgId');
+  const { user } = useAuth();
+
+  // Get the user's org from their profile
+  const userOrgId = urlOrgId
+    || (typeof user?.organizationId === 'string' ? user.organizationId : null)
+    || (typeof user?.organizationId === 'object' && user?.organizationId?._id ? user.organizationId._id : null)
+    || '';
+  const userOrgName = typeof user?.organizationId === 'object' && user?.organizationId?.name
+    ? user.organizationId.name : '';
 
   const [step, setStep] = useState(0);
-  const [selectedOrg, setSelectedOrg] = useState(urlOrgId || '');
+  const [selectedOrg, setSelectedOrg] = useState(userOrgId);
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
   const [rules, setRules] = useState<Record<string, unknown>>({});
 
-  // Fetch organizations
-  const { data: orgs = [] } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: () => getOrganizations() as unknown as Promise<{ _id: string; name: string }[]>,
-    enabled: !urlOrgId,
-  });
+  // Auto-select org when user data loads
+  useEffect(() => {
+    if (userOrgId && !selectedOrg) setSelectedOrg(userOrgId);
+  }, [userOrgId, selectedOrg]);
 
   // Details form
   const {
     register,
     handleSubmit,
     getValues,
+    watch,
     trigger,
     formState: { errors },
   } = useForm<DetailsForm>({
@@ -156,22 +164,26 @@ function NewTournamentPage() {
     },
   });
 
+  // Watch form fields so canProceed re-evaluates when they change
+  const watchedName = watch('name');
+  const watchedStartDate = watch('startDate');
+
   const canProceed = useCallback(() => {
     switch (step) {
       case 0:
-        return !!selectedSport && (!!urlOrgId || !!selectedOrg);
+        return !!selectedSport && !!selectedOrg;
       case 1:
         return !!selectedFormat;
       case 2:
         return true;
       case 3:
-        return !!getValues('name') && !!getValues('startDate');
+        return !!watchedName && watchedName.length >= 2 && !!watchedStartDate;
       case 4:
         return true;
       default:
         return false;
     }
-  }, [step, selectedSport, urlOrgId, selectedOrg, selectedFormat, getValues]);
+  }, [step, selectedSport, selectedOrg, selectedFormat, watchedName, watchedStartDate]);
 
   const goNext = async () => {
     if (step === 3) {
@@ -260,18 +272,18 @@ function NewTournamentPage() {
         {/* Step 0: Organization + Sport */}
         {step === 0 && (
           <div className="space-y-5">
-            {/* Organization selector */}
-            {!urlOrgId && (
-              <Select
-                label="Organization"
-                value={selectedOrg}
-                onChange={(e) => setSelectedOrg(e.target.value)}
-                placeholder="Select an organization"
-                options={orgs.map((o) => ({
-                  value: o._id,
-                  label: o.name,
-                }))}
-              />
+            {/* Organization (auto-selected from user's org) */}
+            {userOrgId ? (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-text-primary">Organization</label>
+                <div className="flex h-10 items-center rounded-lg border border-border bg-surface px-3 text-sm text-text-primary">
+                  {userOrgName || 'Your Organization'}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                You need to create or join an organization before creating a tournament.
+              </div>
             )}
 
             {/* Sport grid */}
