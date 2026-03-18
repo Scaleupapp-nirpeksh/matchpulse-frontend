@@ -85,3 +85,55 @@ export async function bulkImportTeams(tournamentId: string, data: FormData) {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }
+
+// Public team registration
+export interface PublicRegistrationData {
+  teamName: string;
+  shortName?: string;
+  captain: { name: string; email?: string; phone?: string };
+  players: Array<{ name: string; jerseyNumber?: number; position?: string }>;
+}
+
+export async function publicRegisterTeam(tournamentId: string, data: PublicRegistrationData) {
+  return apiClient.post(`/teams/tournament/${tournamentId}/register`, data);
+}
+
+export async function getRegistrations(tournamentId: string, status?: string) {
+  return apiClient.get(`/teams/tournament/${tournamentId}/registrations`, { params: { status } });
+}
+
+export async function reviewRegistration(
+  tournamentId: string,
+  registrationId: string,
+  action: 'approve' | 'reject',
+  rejectionReason?: string
+) {
+  return apiClient.put(`/teams/tournament/${tournamentId}/registrations/${registrationId}`, { action, rejectionReason });
+}
+
+// AI-powered import
+export interface AiImportPreview {
+  originalHeaders: string[];
+  totalRows: number;
+  columnMapping: Record<string, string>;
+  teams: Array<{
+    name: string;
+    shortName: string;
+    players: Array<{ name: string; jerseyNumber?: number; position?: string; role?: string }>;
+  }>;
+  confidence: number;
+  warnings: string[];
+}
+
+export async function aiImportTeams(tournamentId: string, data: FormData) {
+  return apiClient.post(`/teams/tournament/${tournamentId}/ai-import`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export async function confirmAiImport(
+  tournamentId: string,
+  data: { teams: AiImportPreview['teams'] }
+) {
+  return apiClient.post(`/teams/tournament/${tournamentId}/ai-import/confirm`, data);
+}

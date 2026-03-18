@@ -80,3 +80,28 @@ export async function updateTournamentStatus(id: string, status: string) {
 export async function generateFixtures(id: string) {
   return apiClient.post(`/tournaments/${id}/fixtures/generate`);
 }
+
+// Registration
+export interface RegistrationInfo {
+  tournament: {
+    _id: string;
+    name: string;
+    sportType: string;
+    format: string;
+    description?: string;
+    logoUrl?: string;
+    startDate?: string;
+    organization?: { name: string; logoUrl?: string };
+  };
+  registration: {
+    isAccepting: boolean;
+    requireApproval: boolean;
+    instructions: string;
+    deadline: string | null;
+    maxTeams: number | null;
+  };
+}
+
+export async function getRegistrationInfo(tournamentId: string) {
+  return apiClient.get(`/tournaments/${tournamentId}/registration-info`);
+}

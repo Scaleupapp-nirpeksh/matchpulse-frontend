@@ -31,8 +31,14 @@ import {
   updatePlayerInTeam,
   removePlayer,
   bulkImportTeams,
+  aiImportTeams,
+  confirmAiImport,
+  getRegistrations,
+  reviewRegistration,
   type CreateTeamData,
+  type AiImportPreview,
 } from '@/lib/api/teams';
+import { getTournament } from '@/lib/api/tournaments';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -45,6 +51,13 @@ import {
   UserPlus,
   X,
   Pencil,
+  Loader2,
+  Sparkles,
+  Check as CheckIcon,
+  X as XIcon,
+  ClipboardList,
+  FileSpreadsheet,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface TeamData {
@@ -94,11 +107,32 @@ export default function TeamsPage() {
   const [editTeamForm, setEditTeamForm] = useState({ name: '', shortName: '', color: '#10B981', seed: '' });
   const [editingPlayer, setEditingPlayer] = useState<{ teamId: string; playerId: string } | null>(null);
   const [editPlayerForm, setEditPlayerForm] = useState({ jerseyNumber: '', position: '' });
+  const [aiImportOpen, setAiImportOpen] = useState(false);
+  const [aiPreview, setAiPreview] = useState<AiImportPreview | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiEditableTeams, setAiEditableTeams] = useState<AiImportPreview['teams']>([]);
+  const [regTab, setRegTab] = useState<'teams' | 'registrations'>('teams');
 
   // Fetch teams
   const { data: teams = [], isLoading } = useQuery({
     queryKey: ['tournament-teams', tournamentId],
     queryFn: () => getTournamentTeams(tournamentId) as unknown as Promise<TeamData[]>,
+  });
+
+  const { data: tournament } = useQuery({
+    queryKey: ['tournament', tournamentId],
+    queryFn: () => getTournament(tournamentId) as unknown as Promise<{ _id: string; status: string }>,
+  });
+
+  const { data: pendingRegistrations = [], refetch: refetchRegistrations } = useQuery({
+    queryKey: ['registrations', tournamentId],
+    queryFn: () => getRegistrations(tournamentId, 'pending') as unknown as Promise<Array<{
+      _id: string; teamName: string; shortName?: string;
+      captain: { name: string; email?: string; phone?: string };
+      players: Array<{ name: string; jerseyNumber?: number; position?: string }>;
+      status: string; createdAt: string;
+    }>>,
+    enabled: tournament?.status === 'registration',
   });
 
   // Add team form
@@ -217,6 +251,46 @@ export default function TeamsPage() {
     },
   });
 
+  const handleAiImport = async (file: File) => {
+    setAiLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const preview = (await aiImportTeams(tournamentId, formData)) as unknown as AiImportPreview;
+      setAiPreview(preview);
+      setAiEditableTeams(preview.teams);
+    } catch {
+      toast.error('Failed to analyze file');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleConfirmAiImport = async () => {
+    if (!aiEditableTeams.length) return;
+    try {
+      const result = (await confirmAiImport(tournamentId, { teams: aiEditableTeams })) as unknown as { teams: number; players: number; errors: string[] };
+      toast.success(`Imported ${result.teams} teams and ${result.players} players`);
+      setAiImportOpen(false);
+      setAiPreview(null);
+      setAiEditableTeams([]);
+      queryClient.invalidateQueries({ queryKey: ['tournament-teams', tournamentId] });
+    } catch {
+      toast.error('Failed to import teams');
+    }
+  };
+
+  const handleReviewRegistration = async (regId: string, action: 'approve' | 'reject') => {
+    try {
+      await reviewRegistration(tournamentId, regId, action);
+      toast.success(action === 'approve' ? 'Team approved!' : 'Registration rejected');
+      refetchRegistrations();
+      queryClient.invalidateQueries({ queryKey: ['tournament-teams', tournamentId] });
+    } catch {
+      toast.error('Failed to process registration');
+    }
+  };
+
   // Bulk import handler
   const handleBulkImport = () => {
     const input = document.createElement('input');
@@ -281,6 +355,106 @@ export default function TeamsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-text-primary">Teams</h1>
         <div className="flex gap-2">
+          {/* AI Import Button */}
+          <Dialog open={aiImportOpen} onOpenChange={(open) => { setAiImportOpen(open); if (!open) { setAiPreview(null); setAiEditableTeams([]); } }}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Sparkles className="mr-2 h-4 w-4" />
+                AI Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>AI-Powered Import</DialogTitle>
+                <DialogDescription>Upload a CSV or Excel file — AI will map your columns automatically</DialogDescription>
+              </DialogHeader>
+              {!aiPreview && !aiLoading && (
+                <div className="space-y-4">
+                  <div
+                    className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 hover:border-accent cursor-pointer transition-colors"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.csv,.xlsx,.xls';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) handleAiImport(file);
+                      };
+                      input.click();
+                    }}
+                  >
+                    <FileSpreadsheet className="h-10 w-10 text-text-tertiary mb-3" />
+                    <p className="text-sm font-medium text-text-primary">Click to upload CSV or Excel</p>
+                    <p className="text-xs text-text-tertiary mt-1">Supports .csv, .xlsx, .xls (max 5MB)</p>
+                  </div>
+                </div>
+              )}
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-accent mb-3" />
+                  <p className="text-sm font-medium text-text-primary">Analyzing your file with AI...</p>
+                  <p className="text-xs text-text-tertiary mt-1">Mapping columns and extracting team data</p>
+                </div>
+              )}
+              {aiPreview && !aiLoading && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={aiPreview.confidence > 0.7 ? 'accent' : 'warning'}>
+                      {aiPreview.confidence > 0.7 ? 'High' : 'Medium'} confidence
+                    </Badge>
+                    <span className="text-xs text-text-tertiary">{aiPreview.totalRows} rows • {aiPreview.teams.length} teams</span>
+                  </div>
+                  {aiPreview.warnings.length > 0 && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      {aiPreview.warnings.map((w, i) => (
+                        <p key={i} className="text-xs text-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" /> {w}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+                    {aiEditableTeams.map((team, ti) => (
+                      <Card key={ti}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <Input
+                              value={team.name}
+                              onChange={(e) => {
+                                const updated = [...aiEditableTeams];
+                                updated[ti] = { ...updated[ti], name: e.target.value };
+                                setAiEditableTeams(updated);
+                              }}
+                              className="h-8 text-sm font-medium w-48"
+                            />
+                            <Badge variant="default">{team.players.length} players</Badge>
+                          </div>
+                          <div className="space-y-1">
+                            {team.players.map((p, pi) => (
+                              <div key={pi} className="flex items-center gap-2 text-xs">
+                                <span className="w-6 text-text-tertiary">#{p.jerseyNumber || '-'}</span>
+                                <span className="flex-1 text-text-primary">{p.name}</span>
+                                <span className="text-text-tertiary">{p.position || ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => { setAiPreview(null); setAiEditableTeams([]); }}>
+                      Re-upload
+                    </Button>
+                    <Button onClick={handleConfirmAiImport}>
+                      <CheckIcon className="mr-2 h-4 w-4" />
+                      Confirm Import ({aiEditableTeams.length} teams)
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
           <div className="relative group">
             <Button variant="outline" onClick={handleBulkImport}>
               <Upload className="mr-2 h-4 w-4" />
@@ -291,8 +465,7 @@ export default function TeamsPage() {
               <code className="block bg-surface rounded p-2 text-[10px] leading-relaxed">
                 team,player,jersey,position<br/>
                 Avengers,Tony Stark,1,Forward<br/>
-                Avengers,Steve Rogers,2,Defender<br/>
-                X-Men,Wolverine,10,Midfielder
+                Avengers,Steve Rogers,2,Defender
               </code>
               <p className="mt-1.5">Columns: team, player, jersey, position, role</p>
             </div>
@@ -355,7 +528,67 @@ export default function TeamsPage() {
         </div>
       </div>
 
+      {/* Registration/Teams Tab Toggle */}
+      {tournament?.status === 'registration' && (
+        <div className="flex gap-2 border-b border-border pb-2">
+          <button
+            onClick={() => setRegTab('teams')}
+            className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors', regTab === 'teams' ? 'bg-accent text-white' : 'text-text-secondary hover:bg-surface')}
+          >
+            Teams ({teams.length})
+          </button>
+          <button
+            onClick={() => setRegTab('registrations')}
+            className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative', regTab === 'registrations' ? 'bg-accent text-white' : 'text-text-secondary hover:bg-surface')}
+          >
+            Registrations
+            {pendingRegistrations.length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">{pendingRegistrations.length}</span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Pending Registrations */}
+      {regTab === 'registrations' && tournament?.status === 'registration' && (
+        <div className="space-y-3">
+          {pendingRegistrations.length === 0 ? (
+            <EmptyState icon={ClipboardList} title="No pending registrations" description="Teams that register via the public link will appear here for your approval." />
+          ) : (
+            pendingRegistrations.map((reg) => (
+              <Card key={reg._id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h3 className="text-sm font-semibold text-text-primary">{reg.teamName}</h3>
+                      <p className="text-xs text-text-tertiary">Captain: {reg.captain.name} {reg.captain.email ? `• ${reg.captain.email}` : ''}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleReviewRegistration(reg._id, 'reject')}>
+                        <XIcon className="h-3.5 w-3.5 mr-1" /> Reject
+                      </Button>
+                      <Button size="sm" onClick={() => handleReviewRegistration(reg._id, 'approve')}>
+                        <CheckIcon className="h-3.5 w-3.5 mr-1" /> Approve
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {reg.players.map((p, i) => (
+                      <Badge key={i} variant="default" className="text-xs">
+                        {p.jerseyNumber ? `#${p.jerseyNumber} ` : ''}{p.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Teams Grid */}
+      {regTab === 'teams' && (
+      <>
       {teams.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -602,6 +835,8 @@ export default function TeamsPage() {
             );
           })}
         </div>
+      )}
+      </>
       )}
 
       {/* Edit Team Dialog */}

@@ -34,6 +34,7 @@ import {
   Trophy,
   ArrowRight,
   Clipboard,
+  Link2,
 } from 'lucide-react';
 
 interface TournamentData {
@@ -240,6 +241,20 @@ export default function ManageTournamentPage() {
           >
             <Shuffle className="mr-2 h-4 w-4" />
             Generate Fixtures
+          </Button>
+        )}
+
+        {tournament.status === 'registration' && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              const url = `${window.location.origin}/tournament/${id}/register`;
+              navigator.clipboard?.writeText(url);
+              toast.success('Registration link copied to clipboard!');
+            }}
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            Copy Registration Link
           </Button>
         )}
       </div>
