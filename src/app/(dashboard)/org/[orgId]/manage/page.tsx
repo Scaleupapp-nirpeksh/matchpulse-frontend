@@ -169,13 +169,17 @@ export default function ManageOrganizationPage() {
         email: data.email || undefined,
         role: data.role,
         expiresInDays: data.expiresInDays ? Number(data.expiresInDays) : 7,
-      }) as unknown as Promise<{ inviteCode: string; inviteUrl: string; role: string }>,
+      }) as unknown as Promise<{ inviteCode: string; inviteUrl: string; role: string; emailSent?: boolean; emailError?: string }>,
     onSuccess: (result) => {
       const code = result?.inviteCode;
       const url = result?.inviteUrl;
       if (code) {
         navigator.clipboard?.writeText(url || code);
-        toast.success('Invite link copied to clipboard! Share it with the member.');
+        if (result?.emailSent) {
+          toast.success('Invite created and email sent! Link also copied to clipboard.');
+        } else {
+          toast.success('Invite link copied to clipboard! Share it manually — email could not be sent.');
+        }
         setLastInvite({ code, url: url || '' });
       } else {
         toast.success('Invite created');
